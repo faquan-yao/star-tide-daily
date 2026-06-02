@@ -14,7 +14,8 @@
 | `scripts/pipeline-agent.mjs` | 调用 `openclaw agent --json` 的管道脚本 |
 | `prompts/*.md` | 各步骤任务提示（中文） |
 | `agents/*/AGENTS.md` | 各 agent 职责与 JSON 契约（中文） |
-| `openclaw.json.example` | OpenClaw 配置模板；可通过 `OPENCLAW_CONFIG_PATH` 直接指向本文件 |
+| `openclaw.json.example` | OpenClaw 配置模板（密钥为 `${VAR}` 占位）；见 `.env.example` |
+| `.env.example` | 需写入 `~/.openclaw/.env` 的环境变量名示例 |
 
 ## 安装
 
@@ -35,7 +36,16 @@ openclaw config file
 
 输出应为 `OPENCLAW_CONFIG_PATH` 所指向的配置文件绝对路径。
 
-> 使用仓库内 `openclaw.json.example` 时，修改配置会直接影响流水线；若需本地密钥或私有覆盖，可复制为同目录下的 `openclaw.json`（勿提交仓库）并改 `OPENCLAW_CONFIG_PATH` 指向该文件。
+3. 配置密钥（配置内为 `${SILICONFLOW_API_KEY}`、`${OPENCLAW_GATEWAY_TOKEN}` 占位，勿写入 JSON）：
+
+```bash
+cp .env.example ~/.openclaw/.env
+# 编辑 ~/.openclaw/.env，填入 SiliconFlow API Key 与 Gateway token
+```
+
+OpenClaw 启动时会读取 `~/.openclaw/.env` 并替换配置中的环境变量。所有 `agents.*.workspace` 均为相对项目根目录的路径。
+
+> 若需整文件本地覆盖，可复制为 `openclaw.json`（已 `.gitignore`）并改 `OPENCLAW_CONFIG_PATH` 指向该文件。
 
 **备选：** 合并到默认路径 `~/.openclaw/openclaw.json`（不设 `OPENCLAW_CONFIG_PATH`）：
 
@@ -49,7 +59,7 @@ cp openclaw.json.example ~/.openclaw/openclaw.json
 # 若已有 openclaw.json，请手动合并 agents.list 与 plugins.entries.lobster
 ```
 
-3. 注册 agent（若尚未存在）：
+4. 注册 agent（若尚未存在）：
 
 ```bash
 openclaw agents add github-trending --workspace "agents/github-trending"

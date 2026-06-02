@@ -1,5 +1,16 @@
 {
   "agents": {
+    "defaults": {
+      "workspace": "workspace",
+      "model": {
+        "primary": "qwen3-6-27b-api-siliconflow-cn/Qwen/Qwen3.6-27B"
+      },
+      "models": {
+        "qwen3-6-27b-api-siliconflow-cn/Qwen/Qwen3.6-27B": {
+          "alias": "Qwen3.6"
+        }
+      }
+    },
     "list": [
       {
         "id": "main",
@@ -33,6 +44,66 @@
   "plugins": {
     "entries": {
       "lobster": { "enabled": true }
+    }
+  },
+  "gateway": {
+    "mode": "local",
+    "auth": {
+      "mode": "token",
+      "token": "${OPENCLAW_GATEWAY_TOKEN}"
+    },
+    "port": 18789,
+    "bind": "loopback",
+    "tailscale": {
+      "mode": "off",
+      "resetOnExit": false
+    },
+    "controlUi": {
+      "allowInsecureAuth": true
+    },
+    "nodes": {
+      "denyCommands": [
+        "camera.snap",
+        "camera.clip",
+        "screen.record",
+        "contacts.add",
+        "calendar.add",
+        "reminders.add",
+        "sms.send",
+        "sms.search"
+      ]
+    }
+  },
+  "session": {
+    "dmScope": "per-channel-peer"
+  },
+  "tools": {
+    "profile": "coding"
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "qwen3-6-27b-api-siliconflow-cn": {
+        "baseUrl": "https://api.siliconflow.cn/v1",
+        "api": "openai-completions",
+        "apiKey": "${SILICONFLOW_API_KEY}",
+        "models": [
+          {
+            "id": "Qwen/Qwen3.6-27B",
+            "name": "Qwen/Qwen3.6-27B (Custom Provider)",
+            "contextWindow": 128000,
+            "maxTokens": 4096,
+            "input": ["text"],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
+            "reasoning": false
+          }
+        ]
+      }
     }
   }
 }

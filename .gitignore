@@ -3,3 +3,5 @@ tmp/
 *.pptx
 .env
 .env.*
+!.env.example
+openclaw.json
