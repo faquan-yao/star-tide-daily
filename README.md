@@ -14,15 +14,38 @@
 | `scripts/pipeline-agent.mjs` | 调用 `openclaw agent --json` 的管道脚本 |
 | `prompts/*.md` | 各步骤任务提示（中文） |
 | `agents/*/AGENTS.md` | 各 agent 职责与 JSON 契约（中文） |
-| `openclaw.json.example` | 复制到 `~/.openclaw/openclaw.json` 后合并 |
+| `openclaw.json.example` | OpenClaw 配置模板；可通过 `OPENCLAW_CONFIG_PATH` 直接指向本文件 |
 
 ## 安装
 
 1. 确保 Gateway 已运行，且本机已安装 `openclaw` CLI。
-2. 合并配置：
+2. 配置 OpenClaw 读取本仓库的配置（推荐）：
+
+在 `~/.bashrc`（或 `~/.zshrc`）末尾加入，将路径换成你本机克隆目录的**绝对路径**：
+
+```bash
+export OPENCLAW_CONFIG_PATH="/绝对路径/star-tide-daily/openclaw.json.example"
+```
+
+保存后执行 `source ~/.bashrc`（或重开终端），确认生效：
+
+```bash
+openclaw config file
+```
+
+输出应为 `OPENCLAW_CONFIG_PATH` 所指向的配置文件绝对路径。
+
+> 使用仓库内 `openclaw.json.example` 时，修改配置会直接影响流水线；若需本地密钥或私有覆盖，可复制为同目录下的 `openclaw.json`（勿提交仓库）并改 `OPENCLAW_CONFIG_PATH` 指向该文件。
+
+**备选：** 合并到默认路径 `~/.openclaw/openclaw.json`（不设 `OPENCLAW_CONFIG_PATH`）：
 
 ```powershell
 Copy-Item openclaw.json.example $env:USERPROFILE\.openclaw\openclaw.json
+# 若已有 openclaw.json，请手动合并 agents.list 与 plugins.entries.lobster
+```
+
+```bash
+cp openclaw.json.example ~/.openclaw/openclaw.json
 # 若已有 openclaw.json，请手动合并 agents.list 与 plugins.entries.lobster
 ```
 
