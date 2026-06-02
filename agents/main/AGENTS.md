@@ -17,7 +17,7 @@
 ```json
 {
   "action": "run",
-  "pipeline": "d:/work/工作/star-tide-daily/workflows/star-tide-daily.lobster",
+  "pipeline": "workflows/star-tide-daily.lobster",
   "argsJson": "{\"outputDir\":\"reports/daily\"}",
   "timeoutMs": 14400000
 }

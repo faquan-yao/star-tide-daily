@@ -4,7 +4,7 @@
 
 主 agent `main` 通过 Lobster 工作流串联三个子 agent。
 
-**项目根目录：** `d:/work/工作/star-tide-daily`
+**项目根目录：** 本仓库根目录（下文路径均相对此目录）
 
 ## 目录结构
 
@@ -29,9 +29,9 @@ Copy-Item openclaw.json.example $env:USERPROFILE\.openclaw\openclaw.json
 3. 注册 agent（若尚未存在）：
 
 ```bash
-openclaw agents add github-trending --workspace "d:/work/工作/star-tide-daily/agents/github-trending"
-openclaw agents add opensource-analyzer --workspace "d:/work/工作/star-tide-daily/agents/opensource-analyzer"
-openclaw agents add ppt-maker --workspace "d:/work/工作/star-tide-daily/agents/ppt-maker"
+openclaw agents add github-trending --workspace "agents/github-trending"
+openclaw agents add opensource-analyzer --workspace "agents/opensource-analyzer"
+openclaw agents add ppt-maker --workspace "agents/ppt-maker"
 ```
 
 ## 手动运行 Lobster
@@ -41,7 +41,7 @@ openclaw agents add ppt-maker --workspace "d:/work/工作/star-tide-daily/agents
 ```json
 {
   "action": "run",
-  "pipeline": "d:/work/工作/star-tide-daily/workflows/star-tide-daily.lobster",
+  "pipeline": "workflows/star-tide-daily.lobster",
   "argsJson": "{\"outputDir\":\"reports/daily\"}",
   "timeoutMs": 14400000
 }
@@ -60,7 +60,6 @@ openclaw agents add ppt-maker --workspace "d:/work/工作/star-tide-daily/agents
 单步调试：
 
 ```bash
-cd "d:/work/工作/star-tide-daily"
 node scripts/pipeline-agent.mjs --agent github-trending --prompt-file prompts/trending.md --timeout 1800
 ```
 

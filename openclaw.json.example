@@ -4,7 +4,7 @@
       {
         "id": "main",
         "default": true,
-        "workspace": "d:/work/工作/star-tide-daily/agents/main",
+        "workspace": "agents/main",
         "subagents": {
           "allowAgents": [
             "github-trending",
@@ -18,15 +18,15 @@
       },
       {
         "id": "github-trending",
-        "workspace": "d:/work/工作/star-tide-daily/agents/github-trending"
+        "workspace": "agents/github-trending"
       },
       {
         "id": "opensource-analyzer",
-        "workspace": "d:/work/工作/star-tide-daily/agents/opensource-analyzer"
+        "workspace": "agents/opensource-analyzer"
       },
       {
         "id": "ppt-maker",
-        "workspace": "d:/work/工作/star-tide-daily/agents/ppt-maker"
+        "workspace": "agents/ppt-maker"
       }
     ]
   },

@@ -1,5 +1,5 @@
 # star-tide-daily（星潮日报）：趋势 -> 分析 -> PPT 预览（审批）-> PPT 定稿
-# 在项目根目录运行：d:/work/工作/star-tide-daily
+# 在项目根目录运行
 
 name: star-tide-daily
 args:
