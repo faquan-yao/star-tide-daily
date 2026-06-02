@@ -1,0 +1,38 @@
+{
+  "agents": {
+    "list": [
+      {
+        "id": "main",
+        "default": true,
+        "workspace": "d:/work/工作/star-tide-daily/agents/main",
+        "subagents": {
+          "allowAgents": [
+            "github-trending",
+            "opensource-analyzer",
+            "ppt-maker"
+          ]
+        },
+        "tools": {
+          "alsoAllow": ["lobster", "sessions_spawn", "sessions_yield"]
+        }
+      },
+      {
+        "id": "github-trending",
+        "workspace": "d:/work/工作/star-tide-daily/agents/github-trending"
+      },
+      {
+        "id": "opensource-analyzer",
+        "workspace": "d:/work/工作/star-tide-daily/agents/opensource-analyzer"
+      },
+      {
+        "id": "ppt-maker",
+        "workspace": "d:/work/工作/star-tide-daily/agents/ppt-maker"
+      }
+    ]
+  },
+  "plugins": {
+    "entries": {
+      "lobster": { "enabled": true }
+    }
+  }
+}
