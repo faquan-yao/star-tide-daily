@@ -14,58 +14,69 @@
 | `scripts/pipeline-agent.mjs` | 调用 `openclaw agent --json` 的管道脚本 |
 | `prompts/*.md` | 各步骤任务提示（中文） |
 | `agents/*/AGENTS.md` | 各 agent 职责与 JSON 契约（中文） |
-| `openclaw.json.example` | OpenClaw 配置模板（密钥为 `${VAR}` 占位）；见 `.env.example` |
-| `.env.example` | 需写入 `~/.openclaw/.env` 的环境变量名示例 |
+| `openclaw.json.example` | OpenClaw 配置模板（部署到 `~/.openclaw/`，勿在仓库内直接作运行配置） |
+| `.env.example` | 复制到 `~/.openclaw/.env`（含 `STAR_TIDE_ROOT` 与密钥） |
+| `scripts/setup-openclaw.sh` | 一键将模板部署到 `~/.openclaw` |
 
 ## 安装
 
-1. 确保 Gateway 已运行，且本机已安装 `openclaw` CLI。
-2. 配置 OpenClaw 读取本仓库的配置（推荐）：
+OpenClaw **运行时**（插件 `npm/`、extensions、会话）放在 `~/.openclaw`；本仓库只保留流水线代码与配置模板。Agent 工作区通过环境变量 `STAR_TIDE_ROOT` 指向本仓库绝对路径。
 
-在 `~/.bashrc`（或 `~/.zshrc`）末尾加入，将路径换成你本机克隆目录的**绝对路径**：
+1. 确保 Gateway 已运行，且本机已安装 `openclaw` CLI。
+
+2. 部署配置与密钥（在**仓库根目录**执行）：
 
 ```bash
-export OPENCLAW_CONFIG_PATH="/绝对路径/star-tide-daily/openclaw.json.example"
+./scripts/setup-openclaw.sh
+# 或手动：
+mkdir -p ~/.openclaw
+cp openclaw.json.example ~/.openclaw/star-tide-daily.json
+cp .env.example ~/.openclaw/.env
+# 编辑 ~/.openclaw/.env：STAR_TIDE_ROOT、SILICONFLOW_API_KEY、OPENCLAW_GATEWAY_TOKEN
 ```
 
-保存后执行 `source ~/.bashrc`（或重开终端），确认生效：
+3. 在 `~/.bashrc`（或 `~/.zshrc`、systemd `Environment=`）中加入：
+
+```bash
+export OPENCLAW_STATE_DIR="$HOME/.openclaw"
+export OPENCLAW_CONFIG_PATH="$HOME/.openclaw/star-tide-daily.json"
+```
+
+保存后 `source ~/.bashrc`，确认：
 
 ```bash
 openclaw config file
+# 应输出 ~/.openclaw/star-tide-daily.json（而非仓库内路径）
 ```
 
-输出应为 `OPENCLAW_CONFIG_PATH` 所指向的配置文件绝对路径。
-
-3. 配置密钥（配置内为 `${SILICONFLOW_API_KEY}`、`${OPENCLAW_GATEWAY_TOKEN}` 占位，勿写入 JSON）：
+4. 安装 Lobster 插件（可在任意目录执行，会装入 `~/.openclaw/npm/...`）：
 
 ```bash
-cp .env.example ~/.openclaw/.env
-# 编辑 ~/.openclaw/.env，填入 SiliconFlow API Key 与 Gateway token
+openclaw plugins install @openclaw/lobster
 ```
 
-OpenClaw 启动时会读取 `~/.openclaw/.env` 并替换配置中的环境变量。所有 `agents.*.workspace` 均为相对项目根目录的路径。
+5. 注册 agent（按需）
 
-> 若需整文件本地覆盖，可复制为 `openclaw.json`（已 `.gitignore`）并改 `OPENCLAW_CONFIG_PATH` 指向该文件。
-
-**备选：** 合并到默认路径 `~/.openclaw/openclaw.json`（不设 `OPENCLAW_CONFIG_PATH`）：
-
-```powershell
-Copy-Item openclaw.json.example $env:USERPROFILE\.openclaw\openclaw.json
-# 若已有 openclaw.json，请手动合并 agents.list 与 plugins.entries.lobster
-```
+先执行：
 
 ```bash
-cp openclaw.json.example ~/.openclaw/openclaw.json
-# 若已有 openclaw.json，请手动合并 agents.list 与 plugins.entries.lobster
+openclaw agents list
 ```
 
-4. 注册 agent（若尚未存在）：
+若输出中**已有** `main`、`github-trending`、`opensource-analyzer`、`ppt-maker` 四个 id（步骤 2 部署的 `star-tide-daily.json` 已定义它们），**跳过本节**，无需再执行 `openclaw agents add`。
+
+若**缺少**上述 id，再按需注册（`workspace` 须与配置中 `${STAR_TIDE_ROOT}/agents/...` 一致）：
 
 ```bash
-openclaw agents add github-trending --workspace "agents/github-trending"
-openclaw agents add opensource-analyzer --workspace "agents/opensource-analyzer"
-openclaw agents add ppt-maker --workspace "agents/ppt-maker"
+ROOT="${STAR_TIDE_ROOT:-/绝对路径/star-tide-daily}"
+openclaw agents add github-trending --workspace "$ROOT/agents/github-trending"
+openclaw agents add opensource-analyzer --workspace "$ROOT/agents/opensource-analyzer"
+openclaw agents add ppt-maker --workspace "$ROOT/agents/ppt-maker"
 ```
+
+> **勿**将 `OPENCLAW_CONFIG_PATH` 指向仓库内的 `openclaw.json.example`，否则 `plugins install` 会在仓库下生成 `npm/`、`extensions/`。
+
+**备选：** 使用默认 `~/.openclaw/openclaw.json`（不设 `OPENCLAW_CONFIG_PATH`），合并本仓库 `openclaw.json.example` 中的 `agents` 与 `plugins.entries.lobster`，并保证 `.env` 含 `STAR_TIDE_ROOT`。
 
 ## 手动运行 Lobster
 

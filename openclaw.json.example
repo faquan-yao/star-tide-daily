@@ -1,7 +1,7 @@
 {
   "agents": {
     "defaults": {
-      "workspace": "workspace",
+      "workspace": "${STAR_TIDE_ROOT}/workspace",
       "model": {
         "primary": "qwen3-6-27b-api-siliconflow-cn/Qwen/Qwen3.6-27B"
       },
@@ -15,7 +15,7 @@
       {
         "id": "main",
         "default": true,
-        "workspace": "agents/main",
+        "workspace": "${STAR_TIDE_ROOT}/agents/main",
         "subagents": {
           "allowAgents": [
             "github-trending",
@@ -29,15 +29,15 @@
       },
       {
         "id": "github-trending",
-        "workspace": "agents/github-trending"
+        "workspace": "${STAR_TIDE_ROOT}/agents/github-trending"
       },
       {
         "id": "opensource-analyzer",
-        "workspace": "agents/opensource-analyzer"
+        "workspace": "${STAR_TIDE_ROOT}/agents/opensource-analyzer"
       },
       {
         "id": "ppt-maker",
-        "workspace": "agents/ppt-maker"
+        "workspace": "${STAR_TIDE_ROOT}/agents/ppt-maker"
       }
     ]
   },
