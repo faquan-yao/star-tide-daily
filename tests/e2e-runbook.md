@@ -68,8 +68,10 @@ node tests/validate-output.mjs --step analyze --file /tmp/analyze.out.json --che
 **通过标准：**
 
 - `reports.length === 3`
-- `reports/daily/$RUN_DATE/01-*.md` 等 3 个文件存在
+- `reports/daily/$RUN_DATE/01-*.md` 等 3 个文件存在（`pipeline-agent.mjs` 会自动将 agent 工作区下的产物迁移/链接到项目根目录）
 - `tmp/clones/$RUN_DATE/` 下 3 个克隆目录存在
+
+若校验提示报告文件缺失，但文件实际在 `agents/opensource-analyzer/reports/` 下，说明是旧版未迁移；重新执行本步骤的 `pipeline-agent.mjs` 命令即可（无需重跑 agent）。
 
 ---
 

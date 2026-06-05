@@ -5,7 +5,7 @@
  */
 
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -42,10 +42,18 @@ function resolvePromptPath(promptFile) {
   return resolve(PROJECT_ROOT, promptFile);
 }
 
-function buildMessage(template, stdin, { runDate, outputDir }) {
+function resolveStarTideRoot() {
+  return process.env.STAR_TIDE_ROOT || PROJECT_ROOT;
+}
+
+function buildMessage(template, stdin, { runDate, outputDir, starTideRoot }) {
   const parts = [template.trim()];
   if (runDate) parts.push(`\n\nrunDate: ${runDate}`);
+  parts.push(`\n\nSTAR_TIDE_ROOT: ${starTideRoot}`);
   parts.push(`\n\noutputDir: ${outputDir}`);
+  parts.push(
+    "\n\n所有文件路径（reportPath、clonePath、previewPath、files 等）均以 STAR_TIDE_ROOT 为根目录；勿写入 agent 工作区子目录。",
+  );
   if (stdin) {
     parts.push("\n\n---\n上一步输出（JSON）：\n");
     parts.push(stdin);
@@ -89,22 +97,139 @@ function runOpenClawAgent(agent, message, timeoutSec) {
   });
 }
 
-function extractJsonPayload(stdout) {
-  if (!stdout) return null;
+function tryRepairTruncatedJson(text) {
+  let open = 0;
+  for (const ch of text) {
+    if (ch === "{") open++;
+    else if (ch === "}") open--;
+  }
+  if (open <= 0) return null;
   try {
-    return JSON.parse(stdout);
+    return JSON.parse(text + "}".repeat(open));
   } catch {
-    const start = stdout.indexOf("{");
-    const end = stdout.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(stdout.slice(start, end + 1));
-      } catch {
-        return null;
-      }
-    }
     return null;
   }
+}
+
+function tryParseContractJson(text) {
+  if (typeof text !== "string" || !text.trim()) return null;
+  const trimmed = text.trim();
+  const jsonStart = trimmed.indexOf("{");
+  const candidate = jsonStart >= 0 ? trimmed.slice(jsonStart) : trimmed;
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    return tryRepairTruncatedJson(candidate);
+  }
+}
+
+function loadContractFromSession(sessionFile) {
+  if (!sessionFile || !existsSync(sessionFile)) return null;
+  const hints = ["reports", "items", "phase", "pendingApproval"];
+  const lines = readFileSync(sessionFile, "utf8").split("\n");
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    let row;
+    try {
+      row = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (row.type !== "message" || row.message?.role !== "assistant") continue;
+    for (const part of row.message.content || []) {
+      if (part.type !== "text" || typeof part.text !== "string") continue;
+      const trimmed = part.text.trim();
+      const jsonStart = trimmed.indexOf("{");
+      if (jsonStart < 0) continue;
+      const candidate = trimmed.slice(jsonStart);
+      if (!hints.some((h) => candidate.includes(`"${h}"`))) continue;
+      const parsed = tryParseContractJson(candidate);
+      if (parsed && typeof parsed === "object") return parsed;
+    }
+  }
+  return null;
+}
+
+function unwrapOpenClawAgentResponse(parsed) {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return parsed;
+  const result = parsed.result;
+  if (!result || typeof result !== "object" || Array.isArray(result)) return parsed;
+
+  const candidates = [
+    result.payloads?.[0]?.text,
+    result.finalAssistantVisibleText,
+    result.finalAssistantRawText,
+  ];
+
+  for (const candidate of candidates) {
+    const contract = tryParseContractJson(candidate);
+    if (contract) return contract;
+  }
+
+  const fromSession = loadContractFromSession(result.meta?.agentMeta?.sessionFile);
+  if (fromSession) return fromSession;
+
+  return parsed;
+}
+
+function extractJsonPayload(stdout) {
+  if (!stdout) return null;
+  const tryParse = (text) => {
+    try {
+      return unwrapOpenClawAgentResponse(JSON.parse(text));
+    } catch {
+      return null;
+    }
+  };
+
+  const direct = tryParse(stdout);
+  if (direct) return direct;
+
+  const start = stdout.indexOf("{");
+  const end = stdout.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    return tryParse(stdout.slice(start, end + 1));
+  }
+  return null;
+}
+
+function relocateFromAgentWorkspace(relativePath, agent) {
+  if (!relativePath || !agent) return;
+  const dest = resolve(PROJECT_ROOT, relativePath);
+  if (existsSync(dest)) return;
+  const src = resolve(PROJECT_ROOT, "agents", agent, relativePath);
+  if (!existsSync(src)) return;
+  mkdirSync(dirname(dest), { recursive: true });
+  if (lstatSync(src).isDirectory()) {
+    symlinkSync(src, dest, "dir");
+  } else {
+    copyFileSync(src, dest);
+  }
+}
+
+function relocateAgentArtifacts(payload, agent) {
+  if (!payload || typeof payload !== "object" || !agent) return payload;
+
+  if (typeof payload.outputDir === "string") {
+    relocateFromAgentWorkspace(payload.outputDir, agent);
+  }
+  if (Array.isArray(payload.reports)) {
+    for (const report of payload.reports) {
+      if (report.reportPath) relocateFromAgentWorkspace(report.reportPath, agent);
+      if (report.clonePath) relocateFromAgentWorkspace(report.clonePath, agent);
+    }
+  }
+  if (typeof payload.previewPath === "string") {
+    relocateFromAgentWorkspace(payload.previewPath, agent);
+  }
+  if (Array.isArray(payload.files)) {
+    for (const file of payload.files) {
+      if (typeof file === "string") relocateFromAgentWorkspace(file, agent);
+    }
+  }
+
+  return payload;
 }
 
 async function main() {
@@ -119,13 +244,15 @@ async function main() {
   }
 
   const stdin = await readStdin();
+  const starTideRoot = resolveStarTideRoot();
   const message = buildMessage(template, stdin, {
     runDate: opts.runDate,
     outputDir: opts.outputDir,
+    starTideRoot,
   });
 
   const { code, stdout, stderr } = await runOpenClawAgent(opts.agent, message, opts.timeout);
-  const parsed = extractJsonPayload(stdout);
+  const parsed = relocateAgentArtifacts(extractJsonPayload(stdout), opts.agent);
 
   if (code !== 0) {
     console.error(`openclaw agent 退出码: ${code}`);
@@ -148,8 +275,15 @@ export {
   parseArgs,
   readStdin,
   resolvePromptPath,
+  resolveStarTideRoot,
   buildMessage,
+  tryParseContractJson,
+  tryRepairTruncatedJson,
+  loadContractFromSession,
+  unwrapOpenClawAgentResponse,
   extractJsonPayload,
+  relocateFromAgentWorkspace,
+  relocateAgentArtifacts,
 };
 
 const isMain = process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url;

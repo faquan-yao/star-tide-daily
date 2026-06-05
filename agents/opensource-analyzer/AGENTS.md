@@ -5,9 +5,10 @@
 ## 职责范围
 
 - 读取任务中的 **趋势 JSON**（来自 `github-trending`）。
-- 将 3 个仓库 **克隆** 到工作区临时目录（如 `tmp/clones/YYYY-MM-DD/`）。
+- 将 3 个仓库 **克隆** 到 `STAR_TIDE_ROOT/tmp/clones/YYYY-MM-DD/`（任务中会提供 `STAR_TIDE_ROOT` 绝对路径）。
 - 分析仓库结构：目录布局、主要语言、入口、文档、测试、CI、依赖（概览即可）。
-- 将详细分析写入 `reports/daily/<date>/`，并在 JSON 中引用文件路径。
+- 将详细分析写入 `STAR_TIDE_ROOT/reports/daily/<date>/`，并在 JSON 中引用**相对于 STAR_TIDE_ROOT** 的路径。
+- **勿**在 agent 工作区目录（`agents/opensource-analyzer/`）下创建 `reports/` 或 `tmp/clones/`。
 - **不要** 向上游推送变更，**不要** 修改上游历史。
 
 ## 输入

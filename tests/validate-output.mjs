@@ -9,6 +9,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { extractJsonPayload, relocateAgentArtifacts } from "../scripts/pipeline-agent.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, "..");
@@ -39,7 +40,18 @@ function resolveInputPath(filePath) {
 function loadJson(filePath) {
   const abs = resolveInputPath(filePath);
   if (!existsSync(abs)) throw new Error(`file not found: ${abs}`);
-  return JSON.parse(readFileSync(abs, "utf8"));
+  const raw = readFileSync(abs, "utf8").trim();
+  if (!raw) {
+    throw new Error(`file is empty: ${abs} (上游 pipeline 步骤可能失败，请先确认再校验)`);
+  }
+  const parsed = extractJsonPayload(raw);
+  if (!parsed) throw new Error(`invalid JSON in: ${abs}`);
+  if (parsed.runId && parsed.result) {
+    throw new Error(
+      `OpenClaw 信封未能拆出步骤契约 JSON: ${abs}（请通过 pipeline-agent.mjs 输出，或检查 session 中的完整回复）`,
+    );
+  }
+  return parsed;
 }
 
 function loadFixture(name) {
@@ -57,6 +69,7 @@ function validateTrending(data, { expectError = false } = {}) {
   assert(typeof data === "object" && data !== null, "root must be object", errors);
   assert(typeof data.date === "string" && DATE_RE.test(data.date), "date must be YYYY-MM-DD", errors);
   assert(Array.isArray(data.items), "items must be array", errors);
+  if (!Array.isArray(data.items)) return errors;
 
   if (expectError) {
     assert(typeof data.error === "string" && data.error.length > 0, "error response needs error string", errors);
@@ -81,6 +94,7 @@ function validateAnalyze(data, { checkFiles = false } = {}) {
   assert(typeof data === "object" && data !== null, "root must be object", errors);
   assert(typeof data.date === "string" && DATE_RE.test(data.date), "date must be YYYY-MM-DD", errors);
   assert(Array.isArray(data.reports), "reports must be array", errors);
+  if (!Array.isArray(data.reports)) return errors;
 
   if (data.error) {
     assert(data.reports.length === 0, "error response reports must be empty", errors);
@@ -100,7 +114,16 @@ function validateAnalyze(data, { checkFiles = false } = {}) {
     assert(Array.isArray(r.risks), "risks must be array", errors);
     if (checkFiles) {
       const abs = resolve(PROJECT_ROOT, r.reportPath);
-      assert(existsSync(abs), `report file missing on disk: ${r.reportPath}`, errors);
+      const agentAbs = resolve(PROJECT_ROOT, "agents", "opensource-analyzer", r.reportPath);
+      if (!existsSync(abs) && existsSync(agentAbs)) {
+        assert(
+          false,
+          `report file under agent workspace (${agentAbs}); rerun pipeline-agent to relocate to ${r.reportPath}`,
+          errors,
+        );
+      } else {
+        assert(existsSync(abs), `report file missing on disk: ${r.reportPath}`, errors);
+      }
     }
   }
   return errors;
@@ -220,7 +243,16 @@ function main() {
     process.exit(2);
   }
 
-  const data = loadJson(opts.file);
+  let data = loadJson(opts.file);
+  if (opts.checkFiles) {
+    const agentByStep = {
+      analyze: "opensource-analyzer",
+      ppt_preview: "ppt-maker",
+      ppt_finalize: "ppt-maker",
+    };
+    const agent = agentByStep[opts.step];
+    if (agent) data = relocateAgentArtifacts(data, agent);
+  }
   const errors = validateStep(opts.step, data, {
     expectError: Boolean(data.error),
     checkFiles: opts.checkFiles,

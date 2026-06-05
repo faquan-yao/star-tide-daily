@@ -5,14 +5,30 @@
  */
 
 import { spawn } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { PROJECT_ROOT, buildMessage, extractJsonPayload } from "../scripts/pipeline-agent.mjs";
+import {
+  PROJECT_ROOT,
+  buildMessage,
+  extractJsonPayload,
+  relocateAgentArtifacts,
+  tryParseContractJson,
+  tryRepairTruncatedJson,
+} from "../scripts/pipeline-agent.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PIPELINE_SCRIPT = resolve(PROJECT_ROOT, "scripts/pipeline-agent.mjs");
@@ -98,11 +114,98 @@ test("L1-04 extractJsonPayload parses wrapped JSON", () => {
   assert.equal(parsed.date, "2026-06-04");
 });
 
+test("L1-04 tryRepairTruncatedJson closes missing braces", () => {
+  const broken = '{"date":"2026-06-04","items":[{"rank":1}]';
+  const repaired = tryRepairTruncatedJson(broken);
+  assert.equal(repaired.date, "2026-06-04");
+  assert.equal(repaired.items.length, 1);
+});
+
+test("L1-04 extractJsonPayload unwraps truncated openclaw payload text", () => {
+  const contract = {
+    date: "2026-06-04",
+    reports: [{ rank: 1, repo: "a/b" }],
+  };
+  const full = JSON.stringify(contract);
+  const truncated = full.slice(0, -1);
+  const envelope = {
+    runId: "x",
+    status: "ok",
+    result: { payloads: [{ text: truncated }] },
+  };
+  const parsed = extractJsonPayload(JSON.stringify(envelope));
+  assert.equal(parsed.date, "2026-06-04");
+  assert.equal(parsed.reports.length, 1);
+  assert.equal(tryParseContractJson(truncated).date, "2026-06-04");
+});
+
+test("L1-04 extractJsonPayload unwraps openclaw agent envelope", () => {
+  const contract = {
+    date: "2026-06-04",
+    items: [{ rank: 1, name: "owner/repo", url: "https://github.com/owner/repo", starsDelta: 100 }],
+  };
+  const envelope = {
+    runId: "test-run",
+    status: "ok",
+    result: {
+      payloads: [{ text: JSON.stringify(contract) }],
+      finalAssistantVisibleText: JSON.stringify(contract),
+    },
+  };
+  const parsed = extractJsonPayload(JSON.stringify(envelope));
+  assert.equal(parsed.date, "2026-06-04");
+  assert.equal(parsed.items.length, 1);
+  assert.equal(parsed.items[0].name, "owner/repo");
+  assert.equal(parsed.runId, undefined);
+});
+
 test("L1-03 buildMessage includes stdin JSON section", () => {
-  const msg = buildMessage("# task", '{"rank":1}', { runDate: "2026-06-04", outputDir: "reports/daily" });
+  const msg = buildMessage("# task", '{"rank":1}', {
+    runDate: "2026-06-04",
+    outputDir: "reports/daily",
+    starTideRoot: PROJECT_ROOT,
+  });
   assert.match(msg, /上一步输出/);
   assert.match(msg, /\{"rank":1\}/);
   assert.match(msg, /runDate: 2026-06-04/);
+  assert.match(msg, new RegExp(`STAR_TIDE_ROOT: ${PROJECT_ROOT.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+});
+
+test("L1-07 relocateAgentArtifacts copies report files from agent workspace", () => {
+  const rel = "reports/daily/2099-01-01/01-relocate-test.md";
+  const agentDir = join(PROJECT_ROOT, "agents", "opensource-analyzer", rel);
+  const dest = join(PROJECT_ROOT, rel);
+  mkdirSync(dirname(agentDir), { recursive: true });
+  writeFileSync(agentDir, "# relocate test\n", "utf8");
+  try {
+    relocateAgentArtifacts({ reports: [{ reportPath: rel }] }, "opensource-analyzer");
+    assert.ok(existsSync(dest));
+    assert.match(readFileSync(dest, "utf8"), /relocate test/);
+    assert.ok(lstatSync(dest).isFile());
+  } finally {
+    rmSync(join(PROJECT_ROOT, "agents", "opensource-analyzer", "reports", "daily", "2099-01-01"), {
+      recursive: true,
+      force: true,
+    });
+    rmSync(join(PROJECT_ROOT, "reports", "daily", "2099-01-01"), { recursive: true, force: true });
+  }
+});
+
+test("L1-07b relocateAgentArtifacts symlinks directories from agent workspace", () => {
+  const relDir = "tmp/clones/2099-01-01/demo-repo";
+  const agentDir = join(PROJECT_ROOT, "agents", "opensource-analyzer", relDir);
+  const dest = join(PROJECT_ROOT, relDir);
+  mkdirSync(agentDir, { recursive: true });
+  writeFileSync(join(agentDir, "README.md"), "demo\n", "utf8");
+  try {
+    relocateAgentArtifacts({ reports: [{ clonePath: relDir }] }, "opensource-analyzer");
+    assert.ok(existsSync(dest));
+    assert.ok(lstatSync(dest).isSymbolicLink());
+    assert.match(readFileSync(join(dest, "README.md"), "utf8"), /demo/);
+  } finally {
+    rmSync(join(PROJECT_ROOT, "agents", "opensource-analyzer", "tmp"), { recursive: true, force: true });
+    rmSync(join(PROJECT_ROOT, "tmp", "clones", "2099-01-01"), { recursive: true, force: true });
+  }
 });
 
 test("L1-03 piped stdin reaches openclaw --message", async () => {
