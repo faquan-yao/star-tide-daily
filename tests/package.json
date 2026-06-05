@@ -1,0 +1,12 @@
+{
+  "name": "star-tide-daily-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test pipeline-agent.test.mjs && node validate-output.mjs --all",
+    "test:static": "./preflight.sh --static",
+    "test:preflight": "./preflight.sh",
+    "test:unit": "node --test pipeline-agent.test.mjs",
+    "test:fixtures": "node validate-output.mjs --all"
+  }
+}

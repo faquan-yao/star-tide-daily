@@ -1,0 +1,23 @@
+{
+  "date": "2026-06-04",
+  "items": [
+    {
+      "rank": 1,
+      "name": "openclaw/openclaw",
+      "url": "https://github.com/openclaw/openclaw",
+      "starsDelta": 1200
+    },
+    {
+      "rank": 2,
+      "name": "lobehub/lobe-chat",
+      "url": "https://github.com/lobehub/lobe-chat",
+      "starsDelta": 980
+    },
+    {
+      "rank": 3,
+      "name": "langgenius/dify",
+      "url": "https://github.com/langgenius/dify",
+      "starsDelta": 750
+    }
+  ]
+}

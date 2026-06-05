@@ -1,6 +1,7 @@
 {
   "name": "star-tide-daily",
-  "version": "1.0.0",
   "private": true,
-  "description": "每日 GitHub 开源 star 趋势分析与日报 PPT 流水线（OpenClaw + Lobster）"
+  "scripts": {
+    "test": "npm test --prefix tests"
+  }
 }

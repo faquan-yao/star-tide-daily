@@ -1,0 +1,45 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  static-and-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: L0 static preflight
+        run: chmod +x tests/preflight.sh && STAR_TIDE_ROOT="$PWD" ./tests/preflight.sh --static
+
+      - name: L1 unit tests
+        working-directory: tests
+        run: npm run test:unit
+
+      - name: L2 fixture validation
+        working-directory: tests
+        run: npm run test:fixtures
+
+  e2e-manual:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: E2E placeholder
+        run: |
+          echo "Manual E2E (L3/L4) requires a self-hosted runner with:"
+          echo "  - openclaw CLI + gateway"
+          echo "  - SILICONFLOW_API_KEY, OPENCLAW_GATEWAY_TOKEN"
+          echo "  - STAR_TIDE_ROOT configured"
+          echo ""
+          echo "Follow tests/e2e-runbook.md on the target host."
+          echo "Suggested: openclaw cron run or lobster run via main agent."

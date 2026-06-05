@@ -12,11 +12,21 @@
 |------|------|
 | `workflows/star-tide-daily.lobster` | Lobster 四步流水线 |
 | `scripts/pipeline-agent.mjs` | 调用 `openclaw agent --json` 的管道脚本 |
+| `scripts/setup-openclaw.sh` | 一键将模板部署到 `~/.openclaw` |
 | `prompts/*.md` | 各步骤任务提示（中文） |
 | `agents/*/AGENTS.md` | 各 agent 职责与 JSON 契约（中文） |
 | `openclaw.json.example` | OpenClaw 配置模板（部署到 `~/.openclaw/`，勿在仓库内直接作运行配置） |
 | `.env.example` | 复制到 `~/.openclaw/.env`（含 `STAR_TIDE_ROOT` 与密钥） |
-| `scripts/setup-openclaw.sh` | 一键将模板部署到 `~/.openclaw` |
+
+**测试（独立于正式工程，见 `tests/`）：**
+
+| 路径 | 说明 |
+|------|------|
+| `tests/preflight.sh` | L0 环境与静态检查 |
+| `tests/pipeline-agent.test.mjs` | L1 单元测试 |
+| `tests/validate-output.mjs` | L2 JSON 契约校验 |
+| `tests/fixtures/` | 步骤间标准样例 |
+| `tests/e2e-runbook.md` | L3/L4 手工 E2E 手册 |
 
 ## 安装
 
@@ -35,7 +45,7 @@ cp .env.example ~/.openclaw/.env
 # 编辑 ~/.openclaw/.env：STAR_TIDE_ROOT、SILICONFLOW_API_KEY、OPENCLAW_GATEWAY_TOKEN
 ```
 
-3. 在 `~/.bashrc`（或 `~/.zshrc`、systemd `Environment=`）中加入：
+3. 在 `~/.bashrc`（或 `~/.zshrc`）中加入（供 CLI 与交互式 shell 使用；Gateway 另见步骤 4）：
 
 ```bash
 export OPENCLAW_STATE_DIR="$HOME/.openclaw"
@@ -52,13 +62,48 @@ echo "$STAR_TIDE_ROOT"
 # 应输出本仓库绝对路径
 ```
 
-4. 安装 Lobster 插件（可在任意目录执行，会装入 `~/.openclaw/npm/...`）：
+4. 配置 Gateway systemd 服务（**必须**）
+
+Gateway 以 systemd 用户服务运行，**不会**继承 `~/.bashrc` 中的环境变量。若只配置了 shell 而未改 systemd，会出现：
+
+- `openclaw agents list` 能看到四个 agent id
+- `openclaw agent --agent github-trending` 报 `unknown agent id "github-trending"`
+
+原因是 CLI 读的是 `star-tide-daily.json`，而 Gateway 进程仍用默认的 `~/.openclaw/openclaw.json`。
+
+编辑 `~/.config/systemd/user/openclaw-gateway.service`，在 `[Service]` 段加入（路径替换为实际值）：
+
+```ini
+Environment=OPENCLAW_STATE_DIR=/home/<user>/.openclaw
+Environment=OPENCLAW_CONFIG_PATH=/home/<user>/.openclaw/star-tide-daily.json
+Environment=STAR_TIDE_ROOT=/绝对路径/star-tide-daily
+```
+
+保存后重载并重启：
+
+```bash
+systemctl --user daemon-reload
+openclaw gateway restart
+openclaw gateway status
+```
+
+验证 Gateway 已加载正确配置：
+
+```bash
+# 应能成功返回 JSON，不再报 unknown agent id
+openclaw agent --agent github-trending --message "ping" --json --timeout 60
+
+# Gateway 日志中的 model 应与 star-tide-daily.json 一致（非 openclaw.json 中的模型）
+grep "agent model" /tmp/openclaw/openclaw-$(date +%Y-%m-%d).log | tail -1
+```
+
+5. 安装 Lobster 插件（可在任意目录执行，会装入 `~/.openclaw/npm/...`）：
 
 ```bash
 openclaw plugins install @openclaw/lobster
 ```
 
-5. 注册 agent（按需）
+6. 注册 agent（按需）
 
 先执行：
 
@@ -132,6 +177,18 @@ openclaw cron add \
 2. **analyze** — `opensource-analyzer` 克隆并分析，写入 `reports/daily/<date>/`
 3. **ppt_preview** — `ppt-maker` 生成草稿，**需人工 approve**
 4. **ppt_finalize** — 批准后导出 `.pptx`
+
+## 自动化测试
+
+测试代码均在 [`tests/`](tests/) 目录，与流水线正式文件分离：
+
+```bash
+npm test                      # L1 单测 + L2 fixture 契约校验
+npm run test:static --prefix tests   # L0 静态检查（CI / 无 openclaw 环境）
+./tests/preflight.sh          # L0 完整环境检查（含 gateway / agents）
+```
+
+手工 E2E（L3/L4，含 `resumeToken` 审批流程）见 [tests/e2e-runbook.md](tests/e2e-runbook.md)。
 
 ## 验证清单
 

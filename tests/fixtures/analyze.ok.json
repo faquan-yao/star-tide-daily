@@ -1,0 +1,36 @@
+{
+  "date": "2026-06-04",
+  "outputDir": "reports/daily/2026-06-04",
+  "reports": [
+    {
+      "rank": 1,
+      "repo": "openclaw/openclaw",
+      "url": "https://github.com/openclaw/openclaw",
+      "clonePath": "tmp/clones/2026-06-04/openclaw-openclaw",
+      "reportPath": "reports/daily/2026-06-04/01-openclaw-openclaw.md",
+      "structure": "cli + gateway + plugins",
+      "highlights": ["agent runtime", "lobster workflows"],
+      "risks": ["requires Node 22+"]
+    },
+    {
+      "rank": 2,
+      "repo": "lobehub/lobe-chat",
+      "url": "https://github.com/lobehub/lobe-chat",
+      "clonePath": "tmp/clones/2026-06-04/lobehub-lobe-chat",
+      "reportPath": "reports/daily/2026-06-04/02-lobehub-lobe-chat.md",
+      "structure": "next.js app router",
+      "highlights": ["multi-model chat"],
+      "risks": ["large monorepo"]
+    },
+    {
+      "rank": 3,
+      "repo": "langgenius/dify",
+      "url": "https://github.com/langgenius/dify",
+      "clonePath": "tmp/clones/2026-06-04/langgenius-dify",
+      "reportPath": "reports/daily/2026-06-04/03-langgenius-dify.md",
+      "structure": "api + worker + web",
+      "highlights": ["llm ops platform"],
+      "risks": ["self-host complexity"]
+    }
+  ]
+}
