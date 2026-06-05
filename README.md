@@ -40,6 +40,7 @@ cp .env.example ~/.openclaw/.env
 ```bash
 export OPENCLAW_STATE_DIR="$HOME/.openclaw"
 export OPENCLAW_CONFIG_PATH="$HOME/.openclaw/star-tide-daily.json"
+export STAR_TIDE_ROOT=/绝对路径/star-tide-daily   # 须与 ~/.openclaw/.env 中一致
 ```
 
 保存后 `source ~/.bashrc`，确认：
@@ -47,6 +48,8 @@ export OPENCLAW_CONFIG_PATH="$HOME/.openclaw/star-tide-daily.json"
 ```bash
 openclaw config file
 # 应输出 ~/.openclaw/star-tide-daily.json（而非仓库内路径）
+echo "$STAR_TIDE_ROOT"
+# 应输出本仓库绝对路径
 ```
 
 4. 安装 Lobster 插件（可在任意目录执行，会装入 `~/.openclaw/npm/...`）：
@@ -68,10 +71,9 @@ openclaw agents list
 若**缺少**上述 id，再按需注册（`workspace` 须与配置中 `${STAR_TIDE_ROOT}/agents/...` 一致）：
 
 ```bash
-ROOT="${STAR_TIDE_ROOT:-/绝对路径/star-tide-daily}"
-openclaw agents add github-trending --workspace "$ROOT/agents/github-trending"
-openclaw agents add opensource-analyzer --workspace "$ROOT/agents/opensource-analyzer"
-openclaw agents add ppt-maker --workspace "$ROOT/agents/ppt-maker"
+openclaw agents add github-trending --workspace "$STAR_TIDE_ROOT/agents/github-trending"
+openclaw agents add opensource-analyzer --workspace "$STAR_TIDE_ROOT/agents/opensource-analyzer"
+openclaw agents add ppt-maker --workspace "$STAR_TIDE_ROOT/agents/ppt-maker"
 ```
 
 > **勿**将 `OPENCLAW_CONFIG_PATH` 指向仓库内的 `openclaw.json.example`，否则 `plugins install` 会在仓库下生成 `npm/`、`extensions/`。
