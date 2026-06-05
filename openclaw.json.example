@@ -42,6 +42,9 @@
     ]
   },
   "plugins": {
+    "allow": [
+      "lobster"
+    ],
     "entries": {
       "lobster": { "enabled": true }
     }
