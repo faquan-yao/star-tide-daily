@@ -8,3 +8,4 @@ openclaw.json
 npm/
 extensions/
 agents/**/.openclaw/
+agents/**/tmp/

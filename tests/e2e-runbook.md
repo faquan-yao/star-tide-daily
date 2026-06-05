@@ -8,6 +8,16 @@
 ./tests/preflight.sh
 ```
 
+若上次 E2E 失败或中途中断，先释放磁盘与内存（analyze 会克隆仓库，失败时可能残留）：
+
+```bash
+./scripts/cleanup-pipeline.sh --all
+# 若 Gateway 内存仍偏高，可再执行：
+./scripts/cleanup-pipeline.sh --sessions --gateway
+```
+
+E2E 各步可加 `--cleanup-on-fail`，失败时自动清理克隆与误放仓库目录。
+
 自动化快检（L1 + L2）：
 
 ```bash
@@ -205,6 +215,13 @@ echo '{"invalid":true}' | node scripts/pipeline-agent.mjs \
 ```
 
 **期望：** 非零退出；若在全流程中，后续步骤不执行；`main` agent 应通知负责人（见 `agents/main/AGENTS.md`）。
+
+**失败后清理：**
+
+```bash
+./scripts/cleanup-pipeline.sh --all
+./scripts/cleanup-pipeline.sh --sessions --gateway   # 可选，释放 Gateway 长会话内存
+```
 
 ---
 

@@ -4,16 +4,24 @@
  * 用法: node scripts/pipeline-agent.mjs --agent <id> --prompt-file <path> [--timeout <秒>]
  */
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, "..");
+let activeChild = null;
 
 function parseArgs(argv) {
-  const out = { agent: null, promptFile: null, timeout: 1800, runDate: "", outputDir: "reports/daily" };
+  const out = {
+    agent: null,
+    promptFile: null,
+    timeout: 1800,
+    runDate: "",
+    outputDir: "reports/daily",
+    cleanupOnFail: false,
+  };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--agent" && argv[i + 1]) out.agent = argv[++i];
@@ -21,10 +29,11 @@ function parseArgs(argv) {
     else if (a === "--timeout" && argv[i + 1]) out.timeout = Number(argv[++i]);
     else if (a === "--run-date" && argv[i + 1]) out.runDate = argv[++i];
     else if (a === "--output-dir" && argv[i + 1]) out.outputDir = argv[++i];
+    else if (a === "--cleanup-on-fail") out.cleanupOnFail = true;
   }
   if (!out.agent || !out.promptFile) {
     console.error(
-      "用法: node scripts/pipeline-agent.mjs --agent <id> --prompt-file <path> [--timeout <秒>] [--run-date YYYY-MM-DD] [--output-dir 路径]",
+      "用法: node scripts/pipeline-agent.mjs --agent <id> --prompt-file <path> [--timeout <秒>] [--run-date YYYY-MM-DD] [--output-dir 路径] [--cleanup-on-fail]",
     );
     process.exit(2);
   }
@@ -64,6 +73,23 @@ function buildMessage(template, stdin, { runDate, outputDir, starTideRoot }) {
   return parts.join("");
 }
 
+function killChildTree(child) {
+  if (!child?.pid) return;
+  try {
+    if (process.platform === "win32") {
+      child.kill("SIGTERM");
+      return;
+    }
+    process.kill(-child.pid, "SIGTERM");
+  } catch {
+    try {
+      child.kill("SIGTERM");
+    } catch {
+      // already exited
+    }
+  }
+}
+
 function runOpenClawAgent(agent, message, timeoutSec) {
   return new Promise((resolvePromise, reject) => {
     const args = [
@@ -79,10 +105,24 @@ function runOpenClawAgent(agent, message, timeoutSec) {
     const child = spawn("openclaw", args, {
       cwd: PROJECT_ROOT,
       stdio: ["ignore", "pipe", "pipe"],
+      detached: process.platform !== "win32",
       shell: process.platform === "win32",
     });
+    activeChild = child;
     let stdout = "";
     let stderr = "";
+    let settled = false;
+    const finish = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      fn(value);
+    };
+    const timer = setTimeout(() => {
+      killChildTree(child);
+      finish(reject, new Error(`openclaw agent 超时 (${timeoutSec}s)，已终止子进程`));
+    }, Math.max(1, timeoutSec) * 1000);
+
     child.stdout.on("data", (d) => {
       stdout += d.toString();
     });
@@ -90,10 +130,32 @@ function runOpenClawAgent(agent, message, timeoutSec) {
       stderr += d.toString();
       process.stderr.write(d);
     });
-    child.on("error", (err) => reject(err));
+    child.on("error", (err) => finish(reject, err));
     child.on("close", (code) => {
-      resolvePromise({ code: code ?? 1, stdout: stdout.trim(), stderr });
+      if (activeChild === child) activeChild = null;
+      finish(resolvePromise, { code: code ?? 1, stdout: stdout.trim(), stderr });
     });
+  });
+}
+
+function registerSignalHandlers(cleanupOnFail) {
+  const onSignal = (signal) => {
+    if (activeChild) killChildTree(activeChild);
+    if (cleanupOnFail) runPipelineCleanup("--all");
+    process.exit(signal === "SIGINT" ? 130 : 143);
+  };
+  process.once("SIGINT", onSignal);
+  process.once("SIGTERM", onSignal);
+}
+
+function runPipelineCleanup(mode = "") {
+  const script = resolve(PROJECT_ROOT, "scripts/cleanup-pipeline.sh");
+  if (!existsSync(script)) return;
+  const args = mode ? [script, mode] : [script];
+  spawnSync("bash", args, {
+    cwd: PROJECT_ROOT,
+    env: process.env,
+    stdio: "inherit",
   });
 }
 
@@ -234,6 +296,7 @@ function relocateAgentArtifacts(payload, agent) {
 
 async function main() {
   const opts = parseArgs(process.argv);
+  registerSignalHandlers(opts.cleanupOnFail);
   const promptPath = resolvePromptPath(opts.promptFile);
   let template;
   try {
@@ -251,12 +314,23 @@ async function main() {
     starTideRoot,
   });
 
-  const { code, stdout, stderr } = await runOpenClawAgent(opts.agent, message, opts.timeout);
+  let code;
+  let stdout;
+  let stderr;
+  try {
+    ({ code, stdout, stderr } = await runOpenClawAgent(opts.agent, message, opts.timeout));
+  } catch (err) {
+    if (opts.cleanupOnFail) runPipelineCleanup("--all");
+    console.error(err.message || err);
+    process.exit(1);
+  }
+
   const parsed = relocateAgentArtifacts(extractJsonPayload(stdout), opts.agent);
 
   if (code !== 0) {
     console.error(`openclaw agent 退出码: ${code}`);
     if (stderr) console.error(stderr);
+    if (opts.cleanupOnFail) runPipelineCleanup("--all");
     process.exit(code || 1);
   }
 
@@ -284,6 +358,8 @@ export {
   extractJsonPayload,
   relocateFromAgentWorkspace,
   relocateAgentArtifacts,
+  killChildTree,
+  runPipelineCleanup,
 };
 
 const isMain = process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url;

@@ -12,6 +12,7 @@
 |------|------|
 | `workflows/star-tide-daily.lobster` | Lobster 四步流水线 |
 | `scripts/pipeline-agent.mjs` | 调用 `openclaw agent --json` 的管道脚本 |
+| `scripts/cleanup-pipeline.sh` | 清理克隆目录、孤儿进程与（可选）Gateway 会话内存 |
 | `scripts/setup-openclaw.sh` | 一键将模板部署到 `~/.openclaw` |
 | `prompts/*.md` | 各步骤任务提示（中文） |
 | `agents/*/AGENTS.md` | 各 agent 职责与 JSON 契约（中文） |
@@ -189,6 +190,17 @@ npm run test:static --prefix tests   # L0 静态检查（CI / 无 openclaw 环�
 ```
 
 手工 E2E（L3/L4，含 `resumeToken` 审批流程）见 [tests/e2e-runbook.md](tests/e2e-runbook.md)。
+
+### 测试失败后的资源清理
+
+`analyze` 会 `git clone` 仓库；步骤超时、中断或非零退出时，克隆目录与 `openclaw agent` 子进程可能残留，导致磁盘与 Gateway 内存偏高。建议：
+
+```bash
+./scripts/cleanup-pipeline.sh --all              # 删除 tmp/clones 与 agent 工作区误放仓库
+./scripts/cleanup-pipeline.sh --sessions --gateway   # 可选：清理旧会话并重启 Gateway
+```
+
+单步调试时可加 `--cleanup-on-fail`，失败时自动执行 `--all` 清理。
 
 ## 验证清单
 

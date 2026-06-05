@@ -133,6 +133,7 @@ function validatePptPreview(data, { checkFiles = false } = {}) {
   const errors = [];
   assert(typeof data === "object" && data !== null, "root must be object", errors);
   assert(data.phase === "preview", 'phase must be "preview"', errors);
+  if (data.phase !== "preview") return errors;
   assert(typeof data.date === "string" && DATE_RE.test(data.date), "date must be YYYY-MM-DD", errors);
   assert(typeof data.outputDir === "string", "outputDir required", errors);
   assert(typeof data.previewPath === "string" && data.previewPath.endsWith(".md"), "previewPath must be .md", errors);
@@ -150,10 +151,13 @@ function validatePptFinalize(data, { checkFiles = false } = {}) {
   const errors = [];
   assert(typeof data === "object" && data !== null, "root must be object", errors);
   assert(data.phase === "finalize", 'phase must be "finalize"', errors);
+  if (data.phase !== "finalize") return errors;
   assert(typeof data.date === "string" && DATE_RE.test(data.date), "date must be YYYY-MM-DD", errors);
   assert(Array.isArray(data.files) && data.files.length > 0, "files must be non-empty array", errors);
+  if (!Array.isArray(data.files)) return errors;
   assert(data.files.every((f) => typeof f === "string" && f.endsWith(".pptx")), "files must be .pptx paths", errors);
   assert(typeof data.delivery === "object" && data.delivery !== null, "delivery object required", errors);
+  if (!data.delivery || typeof data.delivery !== "object") return errors;
   assert(data.delivery.ready === true, "delivery.ready must be true", errors);
   assert(typeof data.delivery.notes === "string", "delivery.notes required", errors);
   if (checkFiles) {
