@@ -202,6 +202,52 @@ npm run test:static --prefix tests   # L0 静态检查（CI / 无 openclaw 环�
 
 单步调试时可加 `--cleanup-on-fail`，失败时自动执行 `--all` 清理。
 
+### SiliconFlow / LLM API 限流（429）
+
+若 `openclaw agent` 报 `GatewayClientRequestError: FailoverError: API rate limit reached` 或退出码 1，通常是 SiliconFlow 等 LLM 提供商返回 HTTP 429（RPM/TPM 超限），而非 GitHub API 限流。
+
+**常见诱因：**
+
+- 同一 agent session 复用导致上下文膨胀（多次 tool 结果累积，单次请求可达数十万 input tokens）
+- 短时间内多 agent 并发调用同一 API Key
+- 账户 RPM/TPM 等级较低
+
+**排查：**
+
+```bash
+grep -l "rate_limit\|429" ~/.openclaw/agents/*/sessions/*.trajectory.jsonl
+openclaw models status
+openclaw models fallbacks list
+```
+
+**缓解（本项目已内置）：**
+
+1. `pipeline-agent.mjs` 默认每次 run 使用独立 `--session-key`（格式 `agent:<id>:pipeline-<date>-<random>`），避免继承旧会话历史
+2. 遇到 429 时自动指数退避重试（默认 3 次，间隔 60s/120s/240s）；可用 `--max-retries`、`--retry-delay-ms` 调整
+3. `openclaw.json.example` 配置了 DeepSeek 作为 model fallback；部署后 SiliconFlow 429 时会自动切换
+
+**相关错误：**
+
+- `401 Authentication Fails`（fallback）：检查 `~/.openclaw/.env` 中 `DEEPSEEK_API_KEY` 是否正确，避免重复粘贴
+- `LLM idle timeout (120s)`：在 `models.providers.*` 设置 `timeoutSeconds`（模板默认 600），修改后 `openclaw gateway restart`
+
+**手动恢复：**
+
+```bash
+./scripts/cleanup-pipeline.sh --sessions --gateway
+# 等待 5-10 分钟让限流窗口重置
+node scripts/pipeline-agent.mjs --agent github-trending --prompt-file prompts/trending.md --timeout 1800
+```
+
+部署 fallback 配置：
+
+```bash
+# 合并 openclaw.json.example 中的 fallbacks 与 deepseek-api provider 到 ~/.openclaw/star-tide-daily.json
+# 在 ~/.openclaw/.env 填入 DEEPSEEK_API_KEY
+openclaw gateway restart
+openclaw models fallbacks list
+```
+
 ## 验证清单
 
 1. `openclaw agents list` 可见四个 agent id

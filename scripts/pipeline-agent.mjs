@@ -5,6 +5,7 @@
  */
 
 import { spawn, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -21,6 +22,9 @@ function parseArgs(argv) {
     runDate: "",
     outputDir: "reports/daily",
     cleanupOnFail: false,
+    reuseSession: false,
+    maxRetries: 3,
+    retryDelayMs: 60_000,
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -29,15 +33,37 @@ function parseArgs(argv) {
     else if (a === "--timeout" && argv[i + 1]) out.timeout = Number(argv[++i]);
     else if (a === "--run-date" && argv[i + 1]) out.runDate = argv[++i];
     else if (a === "--output-dir" && argv[i + 1]) out.outputDir = argv[++i];
+    else if (a === "--max-retries" && argv[i + 1]) out.maxRetries = Number(argv[++i]);
+    else if (a === "--retry-delay-ms" && argv[i + 1]) out.retryDelayMs = Number(argv[++i]);
     else if (a === "--cleanup-on-fail") out.cleanupOnFail = true;
+    else if (a === "--reuse-session") out.reuseSession = true;
   }
   if (!out.agent || !out.promptFile) {
     console.error(
-      "用法: node scripts/pipeline-agent.mjs --agent <id> --prompt-file <path> [--timeout <秒>] [--run-date YYYY-MM-DD] [--output-dir 路径] [--cleanup-on-fail]",
+      "用法: node scripts/pipeline-agent.mjs --agent <id> --prompt-file <path> [--timeout <秒>] [--run-date YYYY-MM-DD] [--output-dir 路径] [--reuse-session] [--max-retries N] [--retry-delay-ms MS] [--cleanup-on-fail]",
     );
     process.exit(2);
   }
   return out;
+}
+
+function todayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function buildSessionKey(agent, runDate) {
+  const date = runDate || todayDate();
+  const suffix = randomBytes(3).toString("hex");
+  return `agent:${agent}:pipeline-${date}-${suffix}`;
+}
+
+function isRateLimitFailure({ code, stderr }) {
+  if (code === 0) return false;
+  return /rate.?limit|429|FailoverError/i.test(stderr);
+}
+
+function sleep(ms) {
+  return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 }
 
 async function readStdin() {
@@ -90,7 +116,7 @@ function killChildTree(child) {
   }
 }
 
-function runOpenClawAgent(agent, message, timeoutSec) {
+function runOpenClawAgent(agent, message, timeoutSec, { sessionKey } = {}) {
   return new Promise((resolvePromise, reject) => {
     const args = [
       "agent",
@@ -102,6 +128,9 @@ function runOpenClawAgent(agent, message, timeoutSec) {
       "--timeout",
       String(timeoutSec),
     ];
+    if (sessionKey) {
+      args.push("--session-key", sessionKey);
+    }
     const child = spawn("openclaw", args, {
       cwd: PROJECT_ROOT,
       stdio: ["ignore", "pipe", "pipe"],
@@ -136,6 +165,24 @@ function runOpenClawAgent(agent, message, timeoutSec) {
       finish(resolvePromise, { code: code ?? 1, stdout: stdout.trim(), stderr });
     });
   });
+}
+
+async function runOpenClawAgentWithRetry(agent, message, timeoutSec, opts) {
+  const maxRetries = opts.maxRetries ?? 3;
+  const baseDelayMs = opts.retryDelayMs ?? 60_000;
+  let sessionKey = opts.reuseSession ? undefined : buildSessionKey(agent, opts.runDate);
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const result = await runOpenClawAgent(agent, message, timeoutSec, { sessionKey });
+    if (!isRateLimitFailure(result)) return result;
+    if (attempt === maxRetries) return result;
+    const delay = baseDelayMs * 2 ** attempt;
+    console.error(`[pipeline] API 限流，${delay / 1000}s 后重试 (${attempt + 1}/${maxRetries})...`);
+    await sleep(delay);
+    sessionKey = buildSessionKey(agent, opts.runDate);
+  }
+
+  throw new Error("runOpenClawAgentWithRetry: unreachable");
 }
 
 function registerSignalHandlers(cleanupOnFail) {
@@ -318,7 +365,12 @@ async function main() {
   let stdout;
   let stderr;
   try {
-    ({ code, stdout, stderr } = await runOpenClawAgent(opts.agent, message, opts.timeout));
+    ({ code, stdout, stderr } = await runOpenClawAgentWithRetry(opts.agent, message, opts.timeout, {
+      runDate: opts.runDate,
+      reuseSession: opts.reuseSession,
+      maxRetries: opts.maxRetries,
+      retryDelayMs: opts.retryDelayMs,
+    }));
   } catch (err) {
     if (opts.cleanupOnFail) runPipelineCleanup("--all");
     console.error(err.message || err);
@@ -351,6 +403,11 @@ export {
   resolvePromptPath,
   resolveStarTideRoot,
   buildMessage,
+  buildSessionKey,
+  isRateLimitFailure,
+  sleep,
+  runOpenClawAgent,
+  runOpenClawAgentWithRetry,
   tryParseContractJson,
   tryRepairTruncatedJson,
   loadContractFromSession,

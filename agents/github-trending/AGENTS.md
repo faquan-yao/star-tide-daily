@@ -12,6 +12,13 @@
 
 使用可用工具（GitHub API、搜索、趋势列表或已配置的技能）。优先使用可核验的指标（`starsDelta` 或等价字段）。
 
+## 工具使用约束（降低 LLM 调用次数）
+
+- **优先**单次 `web_fetch` 抓取 `https://github.com/trending?since=daily`，从页面直接提取 Top 3；或使用 GitHub Search API 一次拿到候选列表。
+- **避免**多轮 `exec` + `curl` 循环解析 HTML；不要反复验证已拿到的仓库。
+- **拿到 Top 3 后立即输出 JSON**，不要附加 markdown 说明或继续探索其他来源。
+- LLM 往返控制在 **3 轮以内**（含最终 JSON 输出）。
+
 ## 输出契约
 
 **最终回复**必须是单个 JSON 对象（不要用 markdown 代码块包裹，不要附加说明文字）：

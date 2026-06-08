@@ -18,6 +18,10 @@
 
 E2E 各步可加 `--cleanup-on-fail`，失败时自动清理克隆与误放仓库目录。
 
+`pipeline-agent.mjs` 默认每次 run 使用独立 OpenClaw session（`--session-key agent:<id>:pipeline-<date>-<random>`），避免复用长会话导致 token 膨胀与 API 限流。需要连续对话调试时可加 `--reuse-session`。
+
+遇到 SiliconFlow 429 时，pipeline 会自动指数退避重试（默认 3 次）；可用 `--max-retries`、`--retry-delay-ms` 调整。LLM fallback 见根目录 `README.md` 的「API 限流」专节。
+
 自动化快检（L1 + L2）：
 
 ```bash
@@ -56,6 +60,12 @@ node scripts/pipeline-agent.mjs \
 
 node tests/validate-output.mjs --step trending --file /tmp/trending.out.json
 ```
+
+**注意：**
+
+- 必须通过 **`pipeline-agent.mjs`** 捕获 stdout（它会拆 OpenClaw 信封，只输出步骤契约 JSON）。勿用 `openclaw agent ... | tee /tmp/trending.out.json`，否则文件会是含 `runId`/`result` 的信封，`validate-output.mjs` 会报「未能拆出步骤契约 JSON」。
+- 若 `tee` 的文件以 `{"runId":` 开头，说明上游步骤失败或输出格式不对，需先修复 agent 运行再校验。
+- 可选：`--max-retries 3 --retry-delay-ms 60000`（429 限流重试）；`--reuse-session`（调试时复用同一 session，**不推荐** E2E 常规定规跑）。
 
 **通过标准：** JSON 含 3 条 `items`；无 `error`；仓库 URL 可访问。
 
@@ -222,6 +232,16 @@ echo '{"invalid":true}' | node scripts/pipeline-agent.mjs \
 ./scripts/cleanup-pipeline.sh --all
 ./scripts/cleanup-pipeline.sh --sessions --gateway   # 可选，释放 Gateway 长会话内存
 ```
+
+---
+
+## 常见问题
+
+### validate-output 报「OpenClaw 信封未能拆出步骤契约 JSON」
+
+- **原因：** `/tmp/*.out.json` 保存的是 `openclaw agent --json` 原始信封（含 `runId`、`status`、`result`），或 agent 超时/中止时 `payloads` 为空。
+- **处理：** 用 `pipeline-agent.mjs` 重跑对应步骤；确认 stdout 以 `{"date":` 或步骤契约字段开头，而非 `{"runId":`。
+- **限流/超时：** 见根目录 [README.md](../README.md)「SiliconFlow / LLM API 限流（429）」；超时可在 `openclaw.json` 的 `models.providers.*.timeoutSeconds` 调整（模板默认 600）。
 
 ---
 

@@ -24,7 +24,9 @@ import assert from "node:assert/strict";
 import {
   PROJECT_ROOT,
   buildMessage,
+  buildSessionKey,
   extractJsonPayload,
+  isRateLimitFailure,
   relocateAgentArtifacts,
   tryParseContractJson,
   tryRepairTruncatedJson,
@@ -72,17 +74,22 @@ function createMockOpenclawDir({ exitCode = 0, stdout = '{"ok":true}' } = {}) {
   const body = `#!/usr/bin/env bash
 set -euo pipefail
 MESSAGE=""
+SESSION_KEY=""
 ARGS=("$@")
 i=0
 while [[ $i -lt \${#ARGS[@]} ]]; do
   if [[ "\${ARGS[$i]}" == "--message" ]]; then
     MESSAGE="\${ARGS[$((i+1))]}"
-    break
+  elif [[ "\${ARGS[$i]}" == "--session-key" ]]; then
+    SESSION_KEY="\${ARGS[$((i+1))]}"
   fi
   i=$((i+1))
 done
 if [[ -n "\${MOCK_OPENCLAW_CAPTURE:-}" ]]; then
   printf '%s' "$MESSAGE" > "\${MOCK_OPENCLAW_CAPTURE}"
+fi
+if [[ -n "\${MOCK_OPENCLAW_ARGS_CAPTURE:-}" ]]; then
+  printf '%s' "$SESSION_KEY" > "\${MOCK_OPENCLAW_ARGS_CAPTURE}"
 fi
 printf '%s' '${stdout.replace(/'/g, "'\\''")}'
 exit ${exitCode}
@@ -90,6 +97,30 @@ exit ${exitCode}
   writeFileSync(scriptPath, body, { mode: 0o755 });
   chmodSync(scriptPath, 0o755);
   return { dir: binDir };
+}
+
+function createRetryMockOpenclawDir({ failUntil = 2, stdout = '{"retried":true}' } = {}) {
+  const dir = mkdtempSync(join(tmpdir(), "mock-openclaw-retry-"));
+  const binDir = join(dir, "bin");
+  const counterFile = join(dir, "counter");
+  writeFileSync(counterFile, "0", "utf8");
+  mkdirSync(binDir, { recursive: true });
+  const scriptPath = join(binDir, "openclaw");
+  const body = `#!/usr/bin/env bash
+set -euo pipefail
+count=$(cat "${counterFile}")
+count=$((count + 1))
+echo "$count" > "${counterFile}"
+if [[ $count -le ${failUntil} ]]; then
+  echo "GatewayClientRequestError: FailoverError: API rate limit reached" >&2
+  exit 1
+fi
+printf '%s' '${stdout.replace(/'/g, "'\\''")}'
+exit 0
+`;
+  writeFileSync(scriptPath, body, { mode: 0o755 });
+  chmodSync(scriptPath, 0o755);
+  return { dir: binDir, counterFile };
 }
 
 test("L1-01 missing --agent exits 2", async () => {
@@ -240,11 +271,133 @@ test("L1-03 piped stdin reaches openclaw --message", async () => {
 test("L1-05 non-zero openclaw exit propagates", async () => {
   const mock = createMockOpenclawDir({ exitCode: 1, stdout: "" });
   const { code, stderr } = await runNode(
-    [PIPELINE_SCRIPT, "--agent", "github-trending", "--prompt-file", "prompts/trending.md", "--timeout", "5"],
+    [
+      PIPELINE_SCRIPT,
+      "--agent",
+      "github-trending",
+      "--prompt-file",
+      "prompts/trending.md",
+      "--timeout",
+      "5",
+      "--max-retries",
+      "0",
+    ],
     { env: { PATH: `${mock.dir}:${process.env.PATH}` } },
   );
   assert.equal(code, 1);
   assert.match(stderr, /openclaw agent 退出码/);
+});
+
+test("L1-08 buildSessionKey uses agent and runDate", () => {
+  const key = buildSessionKey("github-trending", "2026-06-04");
+  assert.match(key, /^agent:github-trending:pipeline-2026-06-04-[0-9a-f]{6}$/);
+});
+
+test("L1-08 isRateLimitFailure detects rate limit errors", () => {
+  assert.equal(isRateLimitFailure({ code: 0, stderr: "" }), false);
+  assert.equal(
+    isRateLimitFailure({ code: 1, stderr: "FailoverError: API rate limit reached" }),
+    true,
+  );
+  assert.equal(isRateLimitFailure({ code: 1, stderr: "429 status code" }), true);
+  assert.equal(isRateLimitFailure({ code: 1, stderr: "unknown agent id" }), false);
+});
+
+test("L1-08 passes isolated session key to openclaw by default", async () => {
+  const argsCapture = join(tmpdir(), `session-key-${Date.now()}.txt`);
+  const mock = createMockOpenclawDir({ stdout: '{"session":true}' });
+  const { code } = await runNode(
+    [
+      PIPELINE_SCRIPT,
+      "--agent",
+      "github-trending",
+      "--prompt-file",
+      "prompts/trending.md",
+      "--run-date",
+      "2026-06-04",
+      "--timeout",
+      "30",
+      "--max-retries",
+      "0",
+    ],
+    {
+      env: {
+        PATH: `${mock.dir}:${process.env.PATH}`,
+        MOCK_OPENCLAW_ARGS_CAPTURE: argsCapture,
+      },
+    },
+  );
+  assert.equal(code, 0);
+  const sessionKey = readFileSync(argsCapture, "utf8");
+  assert.match(sessionKey, /^agent:github-trending:pipeline-2026-06-04-[0-9a-f]{6}$/);
+});
+
+test("L1-08 retries on rate limit and succeeds", async () => {
+  const mock = createRetryMockOpenclawDir({ failUntil: 2, stdout: '{"retried":true}' });
+  const { code, stdout, stderr } = await runNode(
+    [
+      PIPELINE_SCRIPT,
+      "--agent",
+      "github-trending",
+      "--prompt-file",
+      "prompts/trending.md",
+      "--timeout",
+      "30",
+      "--max-retries",
+      "3",
+      "--retry-delay-ms",
+      "10",
+    ],
+    { env: { PATH: `${mock.dir}:${process.env.PATH}` }, timeoutMs: 15000 },
+  );
+  assert.equal(code, 0);
+  assert.match(stdout, /"retried":true/);
+  assert.match(stderr, /API 限流/);
+  assert.equal(Number(readFileSync(mock.counterFile, "utf8")), 3);
+});
+
+test("L1-08 non-rate-limit errors are not retried", async () => {
+  const mock = createMockOpenclawDir({ exitCode: 1, stdout: "" });
+  const scriptPath = join(mock.dir, "openclaw");
+  writeFileSync(
+    scriptPath,
+    `#!/usr/bin/env bash
+echo "unknown agent id github-trending" >&2
+exit 1
+`,
+    { mode: 0o755 },
+  );
+  const counterFile = join(tmpdir(), `no-retry-${Date.now()}.txt`);
+  writeFileSync(counterFile, "0", "utf8");
+  writeFileSync(
+    scriptPath,
+    `#!/usr/bin/env bash
+count=$(cat "${counterFile}")
+count=$((count + 1))
+echo "$count" > "${counterFile}"
+echo "unknown agent id github-trending" >&2
+exit 1
+`,
+    { mode: 0o755 },
+  );
+  const { code } = await runNode(
+    [
+      PIPELINE_SCRIPT,
+      "--agent",
+      "github-trending",
+      "--prompt-file",
+      "prompts/trending.md",
+      "--timeout",
+      "5",
+      "--max-retries",
+      "3",
+      "--retry-delay-ms",
+      "10",
+    ],
+    { env: { PATH: `${mock.dir}:${process.env.PATH}` } },
+  );
+  assert.equal(code, 1);
+  assert.equal(readFileSync(counterFile, "utf8").trim(), "1");
 });
 
 test("L1-02 TTY stdin does not block (mock openclaw invoked quickly)", async () => {

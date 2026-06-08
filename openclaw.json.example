@@ -3,11 +3,17 @@
     "defaults": {
       "workspace": "${STAR_TIDE_ROOT}/workspace",
       "model": {
-        "primary": "qwen3-6-27b-api-siliconflow-cn/Qwen/Qwen3.6-27B"
+        "primary": "qwen3-6-27b-api-siliconflow-cn/Qwen/Qwen3.6-27B",
+        "fallbacks": [
+          "deepseek-api/deepseek-chat"
+        ]
       },
       "models": {
         "qwen3-6-27b-api-siliconflow-cn/Qwen/Qwen3.6-27B": {
           "alias": "Qwen3.6"
+        },
+        "deepseek-api/deepseek-chat": {
+          "alias": "DeepSeek"
         }
       }
     },
@@ -90,11 +96,34 @@
         "baseUrl": "https://api.siliconflow.cn/v1",
         "api": "openai-completions",
         "apiKey": "${SILICONFLOW_API_KEY}",
+        "timeoutSeconds": 600,
         "models": [
           {
             "id": "Qwen/Qwen3.6-27B",
             "name": "Qwen/Qwen3.6-27B (Custom Provider)",
             "contextWindow": 128000,
+            "maxTokens": 4096,
+            "input": ["text"],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
+            "reasoning": false
+          }
+        ]
+      },
+      "deepseek-api": {
+        "baseUrl": "https://api.deepseek.com/v1",
+        "api": "openai-completions",
+        "apiKey": "${DEEPSEEK_API_KEY}",
+        "timeoutSeconds": 600,
+        "models": [
+          {
+            "id": "deepseek-chat",
+            "name": "DeepSeek Chat (Fallback)",
+            "contextWindow": 64000,
             "maxTokens": 4096,
             "input": ["text"],
             "cost": {
