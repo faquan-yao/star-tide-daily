@@ -8,7 +8,7 @@
 
 - 读取上一步的 **分析 JSON**。
 - 制作 **草稿**：大纲、幻灯片标题、要点、占位素材。
-- 将草稿产物写入 `STAR_TIDE_ROOT/reports/daily/<date>/ppt/`（任务中会提供 `STAR_TIDE_ROOT`；勿写入 agent 工作区子目录）。
+- 将草稿产物写入 `STAR_TIDE_ROOT/artifacts/<date>/ppt/`（任务中会提供 `STAR_TIDE_ROOT`；勿写入 agent 工作区子目录）。
 - 仅输出 JSON；需在 `pendingApproval` 中标注待人工复核的项。
 
 ### 定稿（`ppt-finalize` 提示词）
@@ -24,8 +24,8 @@
 {
   "date": "YYYY-MM-DD",
   "phase": "preview",
-  "outputDir": "reports/daily/YYYY-MM-DD/ppt",
-  "previewPath": "reports/daily/YYYY-MM-DD/ppt/preview.md",
+  "outputDir": "artifacts/YYYY-MM-DD/ppt",
+  "previewPath": "artifacts/YYYY-MM-DD/ppt/preview.md",
   "slideCount": 12,
   "pendingApproval": ["第3页数据指标", "第8页风险说明"],
   "summary": "给负责人的一段摘要"
@@ -38,8 +38,8 @@
 {
   "date": "YYYY-MM-DD",
   "phase": "finalize",
-  "outputDir": "reports/daily/YYYY-MM-DD/ppt",
-  "files": ["reports/daily/YYYY-MM-DD/ppt/daily-report-YYYY-MM-DD.pptx"],
+  "outputDir": "artifacts/YYYY-MM-DD/ppt",
+  "files": ["artifacts/YYYY-MM-DD/ppt/daily-report-YYYY-MM-DD.pptx"],
   "delivery": {
     "ready": true,
     "notes": "可用于商用；对外发布前请复核数据指标"

@@ -193,7 +193,7 @@ test("L1-04 extractJsonPayload unwraps openclaw agent envelope", () => {
 test("L1-03 buildMessage includes stdin JSON section", () => {
   const msg = buildMessage("# task", '{"rank":1}', {
     runDate: "2026-06-04",
-    outputDir: "reports/daily",
+    outputDir: "artifacts",
     starTideRoot: PROJECT_ROOT,
   });
   assert.match(msg, /上一步输出/);
@@ -203,7 +203,7 @@ test("L1-03 buildMessage includes stdin JSON section", () => {
 });
 
 test("L1-07 relocateAgentArtifacts copies report files from agent workspace", () => {
-  const rel = "reports/daily/2099-01-01/01-relocate-test.md";
+  const rel = "artifacts/2099-01-01/01-relocate-test.md";
   const agentDir = join(PROJECT_ROOT, "agents", "opensource-analyzer", rel);
   const dest = join(PROJECT_ROOT, rel);
   mkdirSync(dirname(agentDir), { recursive: true });
@@ -214,16 +214,16 @@ test("L1-07 relocateAgentArtifacts copies report files from agent workspace", ()
     assert.match(readFileSync(dest, "utf8"), /relocate test/);
     assert.ok(lstatSync(dest).isFile());
   } finally {
-    rmSync(join(PROJECT_ROOT, "agents", "opensource-analyzer", "reports", "daily", "2099-01-01"), {
+    rmSync(join(PROJECT_ROOT, "agents", "opensource-analyzer", "artifacts", "2099-01-01"), {
       recursive: true,
       force: true,
     });
-    rmSync(join(PROJECT_ROOT, "reports", "daily", "2099-01-01"), { recursive: true, force: true });
+    rmSync(join(PROJECT_ROOT, "artifacts", "2099-01-01"), { recursive: true, force: true });
   }
 });
 
 test("L1-07b relocateAgentArtifacts symlinks directories from agent workspace", () => {
-  const relDir = "tmp/clones/2099-01-01/demo-repo";
+  const relDir = "artifacts/2099-01-01/clones/demo-repo";
   const agentDir = join(PROJECT_ROOT, "agents", "opensource-analyzer", relDir);
   const dest = join(PROJECT_ROOT, relDir);
   mkdirSync(agentDir, { recursive: true });
@@ -234,8 +234,8 @@ test("L1-07b relocateAgentArtifacts symlinks directories from agent workspace", 
     assert.ok(lstatSync(dest).isSymbolicLink());
     assert.match(readFileSync(join(dest, "README.md"), "utf8"), /demo/);
   } finally {
-    rmSync(join(PROJECT_ROOT, "agents", "opensource-analyzer", "tmp"), { recursive: true, force: true });
-    rmSync(join(PROJECT_ROOT, "tmp", "clones", "2099-01-01"), { recursive: true, force: true });
+    rmSync(join(PROJECT_ROOT, "agents", "opensource-analyzer", "artifacts"), { recursive: true, force: true });
+    rmSync(join(PROJECT_ROOT, "artifacts", "2099-01-01"), { recursive: true, force: true });
   }
 });
 

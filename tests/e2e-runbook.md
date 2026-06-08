@@ -41,7 +41,7 @@ npm test
 
 ```bash
 export RUN_DATE=2026-06-04
-export OUT_DIR=reports/daily
+export OUT_DIR=artifacts
 ```
 
 ---
@@ -88,8 +88,8 @@ node tests/validate-output.mjs --step analyze --file /tmp/analyze.out.json --che
 **通过标准：**
 
 - `reports.length === 3`
-- `reports/daily/$RUN_DATE/01-*.md` 等 3 个文件存在（`pipeline-agent.mjs` 会自动将 agent 工作区下的产物迁移/链接到项目根目录）
-- `tmp/clones/$RUN_DATE/` 下 3 个克隆目录存在
+- `artifacts/$RUN_DATE/01-*.md` 等 3 个文件存在（`pipeline-agent.mjs` 会自动将 agent 工作区下的产物迁移/链接到项目根目录）
+- `artifacts/$RUN_DATE/clones/` 下 3 个克隆目录存在
 
 若校验提示报告文件缺失，但文件实际在 `agents/opensource-analyzer/reports/` 下，说明是旧版未迁移；重新执行本步骤的 `pipeline-agent.mjs` 命令即可（无需重跑 agent）。
 
@@ -114,7 +114,7 @@ node tests/validate-output.mjs --step ppt_preview --file /tmp/ppt-preview.out.js
 **审批前检查：** 此阶段 **不应** 存在 `daily-report-*.pptx`。
 
 ```bash
-ls "reports/daily/$RUN_DATE/ppt/"   # 应有 preview.md，无最终 pptx
+ls "artifacts/$RUN_DATE/ppt/"   # 应有 preview.md，无最终 pptx
 ```
 
 ---
@@ -145,7 +145,7 @@ node tests/validate-output.mjs --step ppt_finalize --file /tmp/ppt-finalize.out.
 {
   "action": "run",
   "pipeline": "workflows/star-tide-daily.lobster",
-  "argsJson": "{\"outputDir\":\"reports/daily\",\"runDate\":\"2026-06-04\"}",
+  "argsJson": "{\"outputDir\":\"artifacts\",\"runDate\":\"2026-06-04\"}",
   "timeoutMs": 14400000
 }
 ```
@@ -157,7 +157,7 @@ node tests/validate-output.mjs --step ppt_finalize --file /tmp/ppt-finalize.out.
 | Step 1 trending | Lobster 步骤日志 | 成功，stdout 为合法 trending JSON |
 | Step 2 analyze | 步骤日志 + 磁盘 | 3 份 `.md` + 克隆目录 |
 | Step 3 ppt_preview | 返回体 | 状态 `needs_approval`，含 `resumeToken` |
-| 审批前 | `reports/daily/<date>/ppt/` | 仅有 preview 产物，**无** `.pptx` |
+| 审批前 | `artifacts/<date>/ppt/` | 仅有 preview 产物，**无** `.pptx` |
 | resume | 见下方 | `ppt_finalize` 执行并成功 |
 | 完成 | 产物目录 | 3 md + 1 pptx |
 
@@ -268,13 +268,13 @@ openclaw cron runs --id <job-id>
 ## 产物验收清单
 
 ```
-reports/daily/<date>/
+artifacts/<date>/
   01-<repo>.md
   02-<repo>.md
   03-<repo>.md
+  clones/
+    <owner-repo>/  (x3)
   ppt/
     preview.md
     daily-report-<date>.pptx
-tmp/clones/<date>/
-  <owner-repo>/  (x3)
 ```

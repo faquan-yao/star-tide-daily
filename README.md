@@ -12,12 +12,13 @@
 |------|------|
 | `workflows/star-tide-daily.lobster` | Lobster 四步流水线 |
 | `scripts/pipeline-agent.mjs` | 调用 `openclaw agent --json` 的管道脚本 |
-| `scripts/cleanup-pipeline.sh` | 清理克隆目录、孤儿进程与（可选）Gateway 会话内存 |
+| `scripts/cleanup-pipeline.sh` | 清理 `artifacts/`、孤儿进程与（可选）Gateway 会话内存 |
 | `scripts/setup-openclaw.sh` | 一键将模板部署到 `~/.openclaw` |
 | `prompts/*.md` | 各步骤任务提示（中文） |
 | `agents/*/AGENTS.md` | 各 agent 职责与 JSON 契约（中文） |
 | `openclaw.json.example` | OpenClaw 配置模板（部署到 `~/.openclaw/`，勿在仓库内直接作运行配置） |
 | `.env.example` | 复制到 `~/.openclaw/.env`（含 `STAR_TIDE_ROOT` 与密钥） |
+| `artifacts/` | **运行产物**（gitignore）：`<date>/` 报告与 PPT、`<date>/clones/` 克隆目录 |
 
 **测试（独立于正式工程，见 `tests/`）：**
 
@@ -134,7 +135,7 @@ openclaw agents add ppt-maker --workspace "$STAR_TIDE_ROOT/agents/ppt-maker"
 {
   "action": "run",
   "pipeline": "workflows/star-tide-daily.lobster",
-  "argsJson": "{\"outputDir\":\"reports/daily\"}",
+  "argsJson": "{\"outputDir\":\"artifacts\"}",
   "timeoutMs": 14400000
 }
 ```
@@ -175,7 +176,7 @@ openclaw cron add \
 ## 流程说明
 
 1. **trending** — `github-trending` 输出昨日 star 增速 Top 3（JSON）
-2. **analyze** — `opensource-analyzer` 克隆并分析，写入 `reports/daily/<date>/`
+2. **analyze** — `opensource-analyzer` 克隆并分析，写入 `artifacts/<date>/`
 3. **ppt_preview** — `ppt-maker` 生成草稿，**需人工 approve**
 4. **ppt_finalize** — 批准后导出 `.pptx`
 
@@ -196,7 +197,7 @@ npm run test:static --prefix tests   # L0 静态检查（CI / 无 openclaw 环�
 `analyze` 会 `git clone` 仓库；步骤超时、中断或非零退出时，克隆目录与 `openclaw agent` 子进程可能残留，导致磁盘与 Gateway 内存偏高。建议：
 
 ```bash
-./scripts/cleanup-pipeline.sh --all              # 删除 tmp/clones 与 agent 工作区误放仓库
+./scripts/cleanup-pipeline.sh --all              # 删除 artifacts/ 与 agent 工作区误放仓库
 ./scripts/cleanup-pipeline.sh --sessions --gateway   # 可选：清理旧会话并重启 Gateway
 ```
 

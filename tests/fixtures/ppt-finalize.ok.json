@@ -1,10 +1,10 @@
 {
   "date": "2026-06-04",
   "phase": "finalize",
-  "outputDir": "reports/daily/2026-06-04/ppt",
-  "files": ["reports/daily/2026-06-04/ppt/daily-report-2026-06-04.pptx"],
+  "outputDir": "artifacts/2026-06-04/ppt",
+  "files": ["artifacts/2026-06-04/ppt/daily-report-2026-06-04.pptx"],
   "delivery": {
     "ready": true,
-    "notes": "可用于商用；对外发布前请复核数据指标"
+    "notes": "可用于商用"
   }
 }

@@ -12,6 +12,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, "..");
+/** 流水线运行产物根目录（相对 STAR_TIDE_ROOT）：artifacts/<date>/、artifacts/<date>/clones/、artifacts/<date>/ppt/ */
+const ARTIFACTS_DIR = "artifacts";
 let activeChild = null;
 
 function parseArgs(argv) {
@@ -20,7 +22,7 @@ function parseArgs(argv) {
     promptFile: null,
     timeout: 1800,
     runDate: "",
-    outputDir: "reports/daily",
+    outputDir: ARTIFACTS_DIR,
     cleanupOnFail: false,
     reuseSession: false,
     maxRetries: 3,
@@ -87,7 +89,7 @@ function buildMessage(template, stdin, { runDate, outputDir, starTideRoot }) {
   parts.push(`\n\nSTAR_TIDE_ROOT: ${starTideRoot}`);
   parts.push(`\n\noutputDir: ${outputDir}`);
   parts.push(
-    "\n\n所有文件路径（reportPath、clonePath、previewPath、files 等）均以 STAR_TIDE_ROOT 为根目录；勿写入 agent 工作区子目录。",
+    "\n\n所有文件路径（reportPath、clonePath、previewPath、files 等）均以 STAR_TIDE_ROOT 为根目录，写入 artifacts/<date>/（报告）、artifacts/<date>/clones/（克隆）、artifacts/<date>/ppt/（PPT）；勿写入 agent 工作区子目录。",
   );
   if (stdin) {
     parts.push("\n\n---\n上一步输出（JSON）：\n");
@@ -398,6 +400,7 @@ async function main() {
 
 export {
   PROJECT_ROOT,
+  ARTIFACTS_DIR,
   parseArgs,
   readStdin,
   resolvePromptPath,

@@ -4,7 +4,7 @@
 
 ## 常驻程序：star-tide-daily
 
-**授权范围：** 运行 Lobster 工作流、处理 PPT 审批、将结果写入 `reports/daily/`
+**授权范围：** 运行 Lobster 工作流、处理 PPT 审批、将结果写入 `artifacts/`
 **触发条件：** 每日 09:00（由 cron 强制执行）
 **审批关卡：** `ppt_preview` 步骤必须经人工批准后才能执行 `ppt_finalize`
 **升级规则：** 任一步返回无效 JSON 或非零退出码时，通知负责人；不得静默跳过失败步骤
@@ -18,7 +18,7 @@
 {
   "action": "run",
   "pipeline": "workflows/star-tide-daily.lobster",
-  "argsJson": "{\"outputDir\":\"reports/daily\"}",
+  "argsJson": "{\"outputDir\":\"artifacts\"}",
   "timeoutMs": 14400000
 }
 ```

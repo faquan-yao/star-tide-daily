@@ -6,7 +6,7 @@ args:
   runDate:
     default: ""
   outputDir:
-    default: "reports/daily"
+    default: "artifacts"
 steps:
   - id: trending
     command: >-
@@ -14,7 +14,7 @@ steps:
       --agent github-trending
       --prompt-file prompts/trending.md
       --timeout 1800
-      --output-dir reports/daily
+      --output-dir artifacts
 
   - id: analyze
     command: >-
@@ -22,7 +22,7 @@ steps:
       --agent opensource-analyzer
       --prompt-file prompts/analyze.md
       --timeout 7200
-      --output-dir reports/daily
+      --output-dir artifacts
     stdin: $trending.stdout
 
   - id: ppt_preview
@@ -31,7 +31,7 @@ steps:
       --agent ppt-maker
       --prompt-file prompts/ppt-preview.md
       --timeout 3600
-      --output-dir reports/daily
+      --output-dir artifacts
     stdin: $analyze.stdout
     approval: required
 
@@ -41,6 +41,6 @@ steps:
       --agent ppt-maker
       --prompt-file prompts/ppt-finalize.md
       --timeout 3600
-      --output-dir reports/daily
+      --output-dir artifacts
     stdin: $ppt_preview.stdout
     condition: $ppt_preview.approved

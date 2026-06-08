@@ -1,9 +1,9 @@
 {
   "date": "2026-06-04",
   "phase": "preview",
-  "outputDir": "reports/daily/2026-06-04/ppt",
-  "previewPath": "reports/daily/2026-06-04/ppt/preview.md",
+  "outputDir": "artifacts/2026-06-04/ppt",
+  "previewPath": "artifacts/2026-06-04/ppt/preview.md",
   "slideCount": 12,
-  "pendingApproval": ["第3页数据指标", "第8页风险说明"],
-  "summary": "昨日 Top 3 开源项目分析草稿，待复核数据与风险表述。"
+  "pendingApproval": ["第3页数据指标"],
+  "summary": "三项目概览草稿"
 }

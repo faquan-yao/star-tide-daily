@@ -20,7 +20,7 @@ usage() {
   cat <<EOF
 用法: $0 [选项]
 
-  (无选项)     清理 tmp/clones、孤儿 git clone 进程
+  (无选项)     清理 artifacts/、孤儿 git clone 进程
   --all        额外清理 agent 工作区中误克隆的仓库目录
   --sessions   清理 ~/.openclaw/agents/*/sessions 中的旧会话（每 agent 保留最新 1 个）
   --gateway    重启 OpenClaw Gateway（释放 agent 长会话内存）
@@ -66,7 +66,7 @@ kill_orphan_git_clones() {
     return
   fi
   local pids
-  pids="$(pgrep -f "git clone.*(${ROOT}|star-tide-daily|tmp/clones)" 2>/dev/null || true)"
+  pids="$(pgrep -f "git clone.*(${ROOT}|star-tide-daily|artifacts/|tmp/clones)" 2>/dev/null || true)"
   if [[ -z "$pids" ]]; then
     log "no orphan git clone processes"
     return
@@ -85,10 +85,15 @@ remove_dir_if_exists() {
   fi
 }
 
-clean_project_clones() {
+clean_project_artifacts() {
+  remove_dir_if_exists "$ROOT/artifacts"
+  # 兼容旧版产物路径
   remove_dir_if_exists "$ROOT/tmp/clones"
+  remove_dir_if_exists "$ROOT/reports/daily"
   for agent in main github-trending opensource-analyzer ppt-maker; do
     remove_dir_if_exists "$ROOT/agents/$agent/tmp/clones"
+    remove_dir_if_exists "$ROOT/agents/$agent/artifacts"
+    remove_dir_if_exists "$ROOT/agents/$agent/reports"
   done
 }
 
@@ -147,7 +152,7 @@ if [[ "$DO_PROCESSES" -eq 1 ]]; then
   kill_orphan_git_clones
 fi
 if [[ "$DO_CLONES" -eq 1 ]]; then
-  clean_project_clones
+  clean_project_artifacts
 fi
 if [[ "$DO_WORKSPACE_CLONES" -eq 1 ]]; then
   clean_workspace_misplaced_clones
