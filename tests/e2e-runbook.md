@@ -137,6 +137,38 @@ node tests/validate-output.mjs --step ppt_finalize --file /tmp/ppt-finalize.out.
 
 ---
 
+## L3-E：单步脚本（state 持久化）
+
+无需手动 `tee` / pipe，步骤 JSON 写入 `artifacts/$RUN_DATE/.pipeline/`：
+
+```bash
+cd "$STAR_TIDE_ROOT"
+node scripts/run-pipeline-step.mjs --step trending --run-date "$RUN_DATE" --output-dir "$OUT_DIR"
+node scripts/run-pipeline-step.mjs --step analyze --run-date "$RUN_DATE" --output-dir "$OUT_DIR"
+node scripts/run-pipeline-step.mjs --step ppt_preview --run-date "$RUN_DATE" --output-dir "$OUT_DIR"
+node scripts/run-pipeline-step.mjs --step ppt_finalize --run-date "$RUN_DATE" --output-dir "$OUT_DIR"
+```
+
+**通过标准：** 每步 stdout 可通过 `validate-output.mjs`；对应 `.pipeline/<step>.json` 存在。
+
+---
+
+## L3-F：通道自然语言触发（TUI / 微信 / QQ）
+
+前置：Gateway 运行；微信/QQ 插件已安装并完成 login/pairing（见根目录 README「消息通道触发」）。
+
+| 通道 | 操作 | 示例消息 | 通过标准 |
+|------|------|----------|----------|
+| TUI | `openclaw tui` → `/agent main` | 「跑 trending，日期 $RUN_DATE」 | main 调用 `run-pipeline-step`；回复含 3 个 repo 或产物路径 |
+| TUI | 同上 | 「执行完整 star-tide-daily，日期 $RUN_DATE」 | Lobster 跑至 `needs_approval` 或完成 |
+| 微信 | 私聊 main（配对后） | 同上 | 与 TUI 行为一致 |
+| QQ | 私聊或 @ 机器人 | 同上 | 与 TUI 行为一致 |
+| 任意 | 全流程暂停后 | 「批准 PPT 预览」 | `resume` 成功；最终 `.pptx` 生成 |
+
+**注意：** 长任务可能超过默认消息 timeout；失败时查 Gateway 日志并考虑延长 timeout（≥14400s）。
+
+---
+
 ## L4-01：Lobster 全流程（含审批）
 
 通过 `main` agent 的 lobster 工具触发（在项目根目录会话中）：

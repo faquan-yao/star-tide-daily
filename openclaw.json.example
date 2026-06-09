@@ -49,12 +49,36 @@
   },
   "plugins": {
     "allow": [
-      "lobster"
+      "lobster",
+      "openclaw-weixin",
+      "qqbot"
     ],
     "entries": {
-      "lobster": { "enabled": true }
+      "lobster": { "enabled": true },
+      "openclaw-weixin": { "enabled": false },
+      "qqbot": { "enabled": false }
     }
   },
+  "channels": {
+    "openclaw-weixin": {
+      "enabled": true,
+      "dmPolicy": "pairing"
+    },
+    "qqbot": {
+      "enabled": false,
+      "groupPolicy": "allowlist"
+    }
+  },
+  "bindings": [
+    {
+      "agentId": "main",
+      "match": { "channel": "openclaw-weixin" }
+    },
+    {
+      "agentId": "main",
+      "match": { "channel": "qqbot" }
+    }
+  ],
   "gateway": {
     "mode": "local",
     "auth": {
@@ -87,7 +111,7 @@
     "dmScope": "per-channel-peer"
   },
   "tools": {
-    "profile": "coding"
+    "profile": "full"
   },
   "models": {
     "mode": "merge",

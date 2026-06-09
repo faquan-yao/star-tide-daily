@@ -12,6 +12,8 @@
 |------|------|
 | `workflows/star-tide-daily.lobster` | Lobster 四步流水线 |
 | `scripts/pipeline-agent.mjs` | 调用 `openclaw agent --json` 的管道脚本 |
+| `scripts/run-pipeline-step.mjs` | 单步运行 + `artifacts/<date>/.pipeline/` 状态持久化 |
+| `scripts/pipeline-steps.mjs` | 四步定义（与 Lobster 对齐） |
 | `scripts/cleanup-pipeline.sh` | 清理 `artifacts/`、孤儿进程与（可选）Gateway 会话内存 |
 | `scripts/setup-openclaw.sh` | 一键将模板部署到 `~/.openclaw` |
 | `prompts/*.md` | 各步骤任务提示（中文） |
@@ -26,6 +28,7 @@
 |------|------|
 | `tests/preflight.sh` | L0 环境与静态检查 |
 | `tests/pipeline-agent.test.mjs` | L1 单元测试 |
+| `tests/run-pipeline-step.test.mjs` | L1 单步脚本单元测试 |
 | `tests/validate-output.mjs` | L2 JSON 契约校验 |
 | `tests/fixtures/` | 步骤间标准样例 |
 | `tests/e2e-runbook.md` | L3/L4 手工 E2E 手册 |
@@ -150,11 +153,75 @@ openclaw agents add ppt-maker --workspace "$STAR_TIDE_ROOT/agents/ppt-maker"
 }
 ```
 
-单步调试：
+单步调试（推荐，步骤间 state 自动持久化）：
+
+```bash
+node scripts/run-pipeline-step.mjs --step trending --run-date 2026-06-04
+node scripts/run-pipeline-step.mjs --step analyze --run-date 2026-06-04
+node scripts/run-pipeline-step.mjs --step ppt_preview --run-date 2026-06-04
+node scripts/run-pipeline-step.mjs --step ppt_finalize --run-date 2026-06-04
+```
+
+或直接调用 pipeline-agent（需手动 pipe stdin）：
 
 ```bash
 node scripts/pipeline-agent.mjs --agent github-trending --prompt-file prompts/trending.md --timeout 1800
 ```
+
+## 消息通道触发（TUI / 微信 / QQ）
+
+三通道均路由到 **main** agent，使用**相同自然语言**（详见 [`agents/main/AGENTS.md`](agents/main/AGENTS.md)）。
+
+### TUI
+
+```bash
+openclaw tui
+# /agent main
+```
+
+示例消息：
+
+- 「跑 trending，日期 2026-06-04」
+- 「执行完整 star-tide-daily」
+- 「批准 PPT 预览」（Lobster 全流程暂停后）
+
+### 微信
+
+需 OpenClaw `>=2026.3.22`，安装外部插件 `@tencent-weixin/openclaw-weixin`：
+
+```bash
+openclaw plugins install "@tencent-weixin/openclaw-weixin"
+openclaw config set plugins.entries.openclaw-weixin.enabled true
+openclaw config set channels.openclaw-weixin.enabled true
+# 合并 openclaw.json.example 中的 channels / bindings 到 ~/.openclaw/star-tide-daily.json
+openclaw gateway restart
+openclaw channels login --channel openclaw-weixin   # 扫码登录
+openclaw pairing approve openclaw-weixin <CODE>       # 新联系人配对
+```
+
+### QQ Bot
+
+```bash
+openclaw plugins install @openclaw/qqbot
+openclaw config set plugins.entries.qqbot.enabled true
+openclaw channels add --channel qqbot --token "AppID:AppSecret"
+# 或在 ~/.openclaw/.env 设置 QQBOT_APP_ID、QQBOT_CLIENT_SECRET
+openclaw gateway restart
+openclaw channels status --probe
+```
+
+QQ 群聊默认需 @ 机器人；在 `channels.qqbot.groups` 中配置 `requireMention` 与 `groupAllowFrom`。
+
+### 触发语句速查
+
+| 意图 | 示例 |
+|------|------|
+| 全流程 | 「跑完整星潮」「执行 star-tide-daily」 |
+| 单步 | 「跑 trending」「分析」「PPT 预览」 |
+| 审批 | 「批准预览」「同意 PPT」 |
+| 帮助 | 「星潮帮助」 |
+
+**长任务超时：** analyze / 全流程可能耗时数小时。cron 已设 `--timeout-seconds 14400`；经微信/QQ 触发时，请确认 Gateway 与 agent 的 timeout 足够（建议 ≥14400s）。
 
 ## 每日 9:00 定时任务
 
