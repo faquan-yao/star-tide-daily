@@ -1,6 +1,6 @@
 # star-tide-daily（星潮日报）
 
-基于 OpenClaw + Lobster 的每日 GitHub 开源报告流水线：昨日 star 增速 Top 3 → 克隆分析 → 可商用 PPT（预览需人工审批）。
+基于 OpenClaw + Lobster 的每日 GitHub 开源报告流水线：昨日 star 增速分领域 Top 3（AI / 新能源 / 自动驾驶，共 9 仓）→ 克隆分析 → 可商用 PPT（预览需人工审批）。
 
 主 agent `main` 通过 Lobster 工作流串联三个子 agent。
 
@@ -242,8 +242,8 @@ openclaw cron add \
 
 ## 流程说明
 
-1. **trending** — `github-trending` 输出昨日 star 增速 Top 3（JSON）
-2. **analyze** — `opensource-analyzer` 克隆并分析，写入 `artifacts/<date>/`
+1. **trending** — `github-trending` 输出昨日 star 增速分领域 Top 3（三领域共 9 条 JSON）
+2. **analyze** — `opensource-analyzer` 克隆并分析 9 个仓库，写入 `artifacts/<date>/`
 3. **ppt_preview** — `ppt-maker` 生成草稿，**需人工 approve**
 4. **ppt_finalize** — 批准后导出 `.pptx`
 

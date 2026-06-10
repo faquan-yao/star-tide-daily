@@ -68,13 +68,13 @@
 ### 通道回复规范
 
 - **启动长任务：** 一行确认（步骤/全流程、runDate、预计耗时）
-- **单步完成：** 摘要 JSON 关键字段（如 3 个 repo 名、`reports` 数量、`previewPath`）+ 磁盘路径
+- **单步完成：** 摘要 JSON 关键字段（如 9 个 repo 名或分领域摘要、`reports` 数量、`previewPath`）+ 磁盘路径
 - **needs_approval：** preview 路径 + 待审条目 + `resumeToken`（便于用户稍后批准）
 - **失败：** 退出码、stderr 摘要、建议 `./scripts/cleanup-pipeline.sh --all`
 
 ### 成功后汇总
 
-3 个项目名、分析报告路径、最终 PPT 路径（`artifacts/<date>/ppt/daily-report-<date>.pptx`）。
+9 个项目名（可按 `ai` / `new_energy` / `autonomous_driving` 分组）、分析报告路径、最终 PPT 路径（`artifacts/<date>/ppt/daily-report-<date>.pptx`）。
 
 ### 子 Agent
 

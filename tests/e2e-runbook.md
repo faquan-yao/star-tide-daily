@@ -67,7 +67,7 @@ node tests/validate-output.mjs --step trending --file /tmp/trending.out.json
 - 若 `tee` 的文件以 `{"runId":` 开头，说明上游步骤失败或输出格式不对，需先修复 agent 运行再校验。
 - 可选：`--max-retries 3 --retry-delay-ms 60000`（429 限流重试）；`--reuse-session`（调试时复用同一 session，**不推荐** E2E 常规定规跑）。
 
-**通过标准：** JSON 含 3 条 `items`；无 `error`；仓库 URL 可访问。
+**通过标准：** JSON 含 9 条 `items`（`ai` / `new_energy` / `autonomous_driving` 各 3 条）；无 `error`；仓库 URL 可访问。
 
 ---
 
@@ -87,9 +87,9 @@ node tests/validate-output.mjs --step analyze --file /tmp/analyze.out.json --che
 
 **通过标准：**
 
-- `reports.length === 3`
-- `artifacts/$RUN_DATE/01-*.md` 等 3 个文件存在（`pipeline-agent.mjs` 会自动将 agent 工作区下的产物迁移/链接到项目根目录）
-- `artifacts/$RUN_DATE/clones/` 下 3 个克隆目录存在
+- `reports.length === 9`（三领域各 3 条）
+- `artifacts/$RUN_DATE/01-*.md` … `09-*.md` 共 9 个文件存在（`pipeline-agent.mjs` 会自动将 agent 工作区下的产物迁移/链接到项目根目录）
+- `artifacts/$RUN_DATE/clones/` 下 9 个克隆目录存在
 
 若校验提示报告文件缺失，但文件实际在 `agents/opensource-analyzer/reports/` 下，说明是旧版未迁移；重新执行本步骤的 `pipeline-agent.mjs` 命令即可（无需重跑 agent）。
 
@@ -159,7 +159,7 @@ node scripts/run-pipeline-step.mjs --step ppt_finalize --run-date "$RUN_DATE" --
 
 | 通道 | 操作 | 示例消息 | 通过标准 |
 |------|------|----------|----------|
-| TUI | `openclaw tui` → `/agent main` | 「跑 trending，日期 $RUN_DATE」 | main 调用 `run-pipeline-step`；回复含 3 个 repo 或产物路径 |
+| TUI | `openclaw tui` → `/agent main` | 「跑 trending，日期 $RUN_DATE」 | main 调用 `run-pipeline-step`；回复含 9 个 repo 或产物路径 |
 | TUI | 同上 | 「执行完整 star-tide-daily，日期 $RUN_DATE」 | Lobster 跑至 `needs_approval` 或完成 |
 | 微信 | 私聊 main（配对后） | 同上 | 与 TUI 行为一致 |
 | QQ | 私聊或 @ 机器人 | 同上 | 与 TUI 行为一致 |
@@ -187,11 +187,11 @@ node scripts/run-pipeline-step.mjs --step ppt_finalize --run-date "$RUN_DATE" --
 | 阶段 | 观察点 | 通过标准 |
 |------|--------|----------|
 | Step 1 trending | Lobster 步骤日志 | 成功，stdout 为合法 trending JSON |
-| Step 2 analyze | 步骤日志 + 磁盘 | 3 份 `.md` + 克隆目录 |
+| Step 2 analyze | 步骤日志 + 磁盘 | 9 份 `.md` + 克隆目录 |
 | Step 3 ppt_preview | 返回体 | 状态 `needs_approval`，含 `resumeToken` |
 | 审批前 | `artifacts/<date>/ppt/` | 仅有 preview 产物，**无** `.pptx` |
 | resume | 见下方 | `ppt_finalize` 执行并成功 |
-| 完成 | 产物目录 | 3 md + 1 pptx |
+| 完成 | 产物目录 | 9 md + 1 pptx |
 
 ### resumeToken 行为记录
 
@@ -301,11 +301,9 @@ openclaw cron runs --id <job-id>
 
 ```
 artifacts/<date>/
-  01-<repo>.md
-  02-<repo>.md
-  03-<repo>.md
+  01-<repo>.md … 09-<repo>.md
   clones/
-    <owner-repo>/  (x3)
+    <owner-repo>/  (x9)
   ppt/
     preview.md
     daily-report-<date>.pptx

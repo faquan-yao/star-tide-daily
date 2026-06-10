@@ -2,22 +2,67 @@
   "date": "2026-06-04",
   "items": [
     {
+      "category": "ai",
       "rank": 1,
       "name": "openclaw/openclaw",
       "url": "https://github.com/openclaw/openclaw",
       "starsDelta": 1200
     },
     {
+      "category": "ai",
       "rank": 2,
       "name": "lobehub/lobe-chat",
       "url": "https://github.com/lobehub/lobe-chat",
       "starsDelta": 980
     },
     {
+      "category": "ai",
       "rank": 3,
       "name": "langgenius/dify",
       "url": "https://github.com/langgenius/dify",
       "starsDelta": 750
+    },
+    {
+      "category": "new_energy",
+      "rank": 1,
+      "name": "openems/openems",
+      "url": "https://github.com/openems/openems",
+      "starsDelta": 420
+    },
+    {
+      "category": "new_energy",
+      "rank": 2,
+      "name": "pvlib/pvlib-python",
+      "url": "https://github.com/pvlib/pvlib-python",
+      "starsDelta": 310
+    },
+    {
+      "category": "new_energy",
+      "rank": 3,
+      "name": "NREL/EnergyPlus",
+      "url": "https://github.com/NREL/EnergyPlus",
+      "starsDelta": 280
+    },
+    {
+      "category": "autonomous_driving",
+      "rank": 1,
+      "name": "autowarefoundation/autoware",
+      "url": "https://github.com/autowarefoundation/autoware",
+      "starsDelta": 560
+    },
+    {
+      "category": "autonomous_driving",
+      "rank": 2,
+      "name": "commaai/openpilot",
+      "url": "https://github.com/commaai/openpilot",
+      "starsDelta": 490
+    },
+    {
+      "category": "autonomous_driving",
+      "rank": 3,
+      "name": "ApolloAuto/apollo",
+      "url": "https://github.com/ApolloAuto/apollo",
+      "starsDelta": 380
     }
   ]
 }

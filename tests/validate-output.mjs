@@ -64,6 +64,8 @@ function assert(condition, message, errors) {
   if (!condition) errors.push(message);
 }
 
+const TRENDING_CATEGORIES = ["ai", "new_energy", "autonomous_driving"];
+
 function validateTrending(data, { expectError = false } = {}) {
   const errors = [];
   assert(typeof data === "object" && data !== null, "root must be object", errors);
@@ -78,11 +80,19 @@ function validateTrending(data, { expectError = false } = {}) {
   }
 
   assert(!data.error, "success response must not have error field", errors);
-  assert(data.items.length === 3, "items must have exactly 3 entries", errors);
-  const ranks = data.items.map((i) => i.rank).sort((a, b) => a - b);
-  assert(ranks.join(",") === "1,2,3", "rank must be 1,2,3", errors);
+  assert(data.items.length === 9, "items must have exactly 9 entries", errors);
+  const names = new Set();
+  for (const category of TRENDING_CATEGORIES) {
+    const group = data.items.filter((i) => i.category === category);
+    assert(group.length === 3, `category ${category} must have exactly 3 entries`, errors);
+    const ranks = group.map((i) => i.rank).sort((a, b) => a - b);
+    assert(ranks.join(",") === "1,2,3", `rank in ${category} must be 1,2,3`, errors);
+  }
   for (const item of data.items) {
+    assert(TRENDING_CATEGORIES.includes(item.category), `invalid category: ${item.category}`, errors);
     assert(typeof item.name === "string" && item.name.includes("/"), "name must be owner/repo", errors);
+    assert(!names.has(item.name), `duplicate repo: ${item.name}`, errors);
+    names.add(item.name);
     assert(typeof item.url === "string" && GITHUB_URL_RE.test(item.url), `invalid url: ${item.url}`, errors);
     assert(Number.isInteger(item.starsDelta) && item.starsDelta > 0, "starsDelta must be positive integer", errors);
   }
@@ -101,11 +111,21 @@ function validateAnalyze(data, { checkFiles = false } = {}) {
     return errors;
   }
 
-  assert(data.reports.length === 3, "reports must have exactly 3 entries", errors);
+  assert(data.reports.length === 9, "reports must have exactly 9 entries", errors);
   assert(typeof data.outputDir === "string" && data.outputDir.length > 0, "outputDir required", errors);
+  const repos = new Set();
+  for (const category of TRENDING_CATEGORIES) {
+    const group = data.reports.filter((r) => r.category === category);
+    assert(group.length === 3, `category ${category} must have exactly 3 reports`, errors);
+    const ranks = group.map((r) => r.rank).sort((a, b) => a - b);
+    assert(ranks.join(",") === "1,2,3", `rank in ${category} must be 1,2,3`, errors);
+  }
   for (const r of data.reports) {
-    assert(Number.isInteger(r.rank) && r.rank >= 1 && r.rank <= 3, "report rank 1-3", errors);
+    assert(TRENDING_CATEGORIES.includes(r.category), `invalid category: ${r.category}`, errors);
+    assert(Number.isInteger(r.rank) && r.rank >= 1 && r.rank <= 3, "report rank 1-3 within category", errors);
     assert(typeof r.repo === "string" && r.repo.includes("/"), "repo must be owner/repo", errors);
+    assert(!repos.has(r.repo), `duplicate repo: ${r.repo}`, errors);
+    repos.add(r.repo);
     assert(typeof r.url === "string" && GITHUB_URL_RE.test(r.url), `invalid url: ${r.url}`, errors);
     assert(typeof r.clonePath === "string" && r.clonePath.length > 0, "clonePath required", errors);
     assert(typeof r.reportPath === "string" && r.reportPath.endsWith(".md"), "reportPath must be .md", errors);

@@ -3,6 +3,7 @@
   "outputDir": "artifacts/2026-06-04",
   "reports": [
     {
+      "category": "ai",
       "rank": 1,
       "repo": "openclaw/openclaw",
       "url": "https://github.com/openclaw/openclaw",
@@ -13,6 +14,7 @@
       "risks": []
     },
     {
+      "category": "ai",
       "rank": 2,
       "repo": "lobehub/lobe-chat",
       "url": "https://github.com/lobehub/lobe-chat",
@@ -23,6 +25,7 @@
       "risks": []
     },
     {
+      "category": "ai",
       "rank": 3,
       "repo": "langgenius/dify",
       "url": "https://github.com/langgenius/dify",
@@ -30,6 +33,72 @@
       "reportPath": "artifacts/2026-06-04/03-langgenius-dify.md",
       "structure": "python api",
       "highlights": ["llm ops"],
+      "risks": []
+    },
+    {
+      "category": "new_energy",
+      "rank": 1,
+      "repo": "openems/openems",
+      "url": "https://github.com/openems/openems",
+      "clonePath": "artifacts/2026-06-04/clones/openems-openems",
+      "reportPath": "artifacts/2026-06-04/04-openems-openems.md",
+      "structure": "java modular",
+      "highlights": ["energy management"],
+      "risks": []
+    },
+    {
+      "category": "new_energy",
+      "rank": 2,
+      "repo": "pvlib/pvlib-python",
+      "url": "https://github.com/pvlib/pvlib-python",
+      "clonePath": "artifacts/2026-06-04/clones/pvlib-pvlib-python",
+      "reportPath": "artifacts/2026-06-04/05-pvlib-pvlib-python.md",
+      "structure": "python library",
+      "highlights": ["pv modeling"],
+      "risks": []
+    },
+    {
+      "category": "new_energy",
+      "rank": 3,
+      "repo": "NREL/EnergyPlus",
+      "url": "https://github.com/NREL/EnergyPlus",
+      "clonePath": "artifacts/2026-06-04/clones/NREL-EnergyPlus",
+      "reportPath": "artifacts/2026-06-04/06-NREL-EnergyPlus.md",
+      "structure": "c++ simulation",
+      "highlights": ["building energy"],
+      "risks": []
+    },
+    {
+      "category": "autonomous_driving",
+      "rank": 1,
+      "repo": "autowarefoundation/autoware",
+      "url": "https://github.com/autowarefoundation/autoware",
+      "clonePath": "artifacts/2026-06-04/clones/autowarefoundation-autoware",
+      "reportPath": "artifacts/2026-06-04/07-autowarefoundation-autoware.md",
+      "structure": "ros2 stack",
+      "highlights": ["autonomous driving"],
+      "risks": []
+    },
+    {
+      "category": "autonomous_driving",
+      "rank": 2,
+      "repo": "commaai/openpilot",
+      "url": "https://github.com/commaai/openpilot",
+      "clonePath": "artifacts/2026-06-04/clones/commaai-openpilot",
+      "reportPath": "artifacts/2026-06-04/08-commaai-openpilot.md",
+      "structure": "python c",
+      "highlights": ["adas"],
+      "risks": []
+    },
+    {
+      "category": "autonomous_driving",
+      "rank": 3,
+      "repo": "ApolloAuto/apollo",
+      "url": "https://github.com/ApolloAuto/apollo",
+      "clonePath": "artifacts/2026-06-04/clones/ApolloAuto-apollo",
+      "reportPath": "artifacts/2026-06-04/09-ApolloAuto-apollo.md",
+      "structure": "c++ modules",
+      "highlights": ["self-driving platform"],
       "risks": []
     }
   ]

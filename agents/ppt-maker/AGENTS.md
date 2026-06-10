@@ -6,8 +6,8 @@
 
 ### 预览（`ppt-preview` 提示词）
 
-- 读取上一步的 **分析 JSON**。
-- 制作 **草稿**：大纲、幻灯片标题、要点、占位素材。
+- 读取上一步的 **分析 JSON**（9 份 `reports`，分三领域）。
+- 制作 **草稿**：大纲、幻灯片标题、要点、占位素材（建议按领域分组，每仓库至少一页）。
 - 将草稿产物写入 `STAR_TIDE_ROOT/artifacts/<date>/ppt/`（任务中会提供 `STAR_TIDE_ROOT`；勿写入 agent 工作区子目录）。
 - 仅输出 JSON；需在 `pendingApproval` 中标注待人工复核的项。
 
@@ -26,7 +26,7 @@
   "phase": "preview",
   "outputDir": "artifacts/YYYY-MM-DD/ppt",
   "previewPath": "artifacts/YYYY-MM-DD/ppt/preview.md",
-  "slideCount": 12,
+  "slideCount": 24,
   "pendingApproval": ["第3页数据指标", "第8页风险说明"],
   "summary": "给负责人的一段摘要"
 }
