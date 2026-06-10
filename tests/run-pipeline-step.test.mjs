@@ -135,7 +135,9 @@ test("L1-RS-10 未知步骤抛出", () => {
 });
 
 test("L1-RS-11 各步 timeout 与 pipeline-agent 一致", () => {
-  assert.equal(PIPELINE_STEPS.trending.timeout, 1800);
+  assert.equal(PIPELINE_STEPS.trending.runner, "script");
+  assert.equal(PIPELINE_STEPS.trending.script, "scripts/fetch-github-trending.mjs");
+  assert.equal(PIPELINE_STEPS.trending.timeout, 120);
   assert.equal(PIPELINE_STEPS.analyze.timeout, 7200);
   assert.equal(PIPELINE_STEPS.ppt_preview.timeout, 3600);
   assert.equal(PIPELINE_STEPS.ppt_finalize.timeout, 3600);

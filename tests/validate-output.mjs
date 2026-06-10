@@ -290,4 +290,17 @@ function main() {
   process.exit(1);
 }
 
-main();
+const isMain =
+  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMain) main();
+
+export {
+  TRENDING_CATEGORIES,
+  validateTrending,
+  validateAnalyze,
+  validatePptPreview,
+  validatePptFinalize,
+  validateStep,
+  validateLobsterChain,
+};

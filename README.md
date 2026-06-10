@@ -162,10 +162,17 @@ node scripts/run-pipeline-step.mjs --step ppt_preview --run-date 2026-06-04
 node scripts/run-pipeline-step.mjs --step ppt_finalize --run-date 2026-06-04
 ```
 
-或直接调用 pipeline-agent（需手动 pipe stdin）：
+trending 默认由脚本抓取（约数秒）；可选 LLM 回退：
 
 ```bash
-node scripts/pipeline-agent.mjs --agent github-trending --prompt-file prompts/trending.md --timeout 1800
+node scripts/fetch-github-trending.mjs --run-date 2026-06-04
+node scripts/run-pipeline-step.mjs --step trending --run-date 2026-06-04 --use-llm
+```
+
+其他步骤仍通过 pipeline-agent（需手动 pipe stdin）：
+
+```bash
+node scripts/pipeline-agent.mjs --agent opensource-analyzer --prompt-file prompts/analyze.md --timeout 7200
 ```
 
 ## 消息通道触发（TUI / 微信 / QQ）
@@ -242,7 +249,7 @@ openclaw cron add \
 
 ## 流程说明
 
-1. **trending** — `github-trending` 输出昨日 star 增速分领域 Top 3（三领域共 9 条 JSON）
+1. **trending** — `fetch-github-trending.mjs` 抓取并输出昨日 star 增速分领域 Top 3（三领域共 9 条 JSON；可选 `GITHUB_TOKEN` 补位）
 2. **analyze** — `opensource-analyzer` 克隆并分析 9 个仓库，写入 `artifacts/<date>/`
 3. **ppt_preview** — `ppt-maker` 生成草稿，**需人工 approve**
 4. **ppt_finalize** — 批准后导出 `.pptx`
@@ -304,7 +311,7 @@ openclaw models fallbacks list
 ```bash
 ./scripts/cleanup-pipeline.sh --sessions --gateway
 # 等待 5-10 分钟让限流窗口重置
-node scripts/pipeline-agent.mjs --agent github-trending --prompt-file prompts/trending.md --timeout 1800
+node scripts/fetch-github-trending.mjs --run-date 2026-06-04
 ```
 
 部署 fallback 配置：

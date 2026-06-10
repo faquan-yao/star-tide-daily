@@ -28,7 +28,7 @@
 **exec 注意：**
 
 - 工作目录为 `STAR_TIDE_ROOT`（项目根）
-- 长任务前告知用户步骤名、runDate、预计耗时（trending ~30min，analyze ~2h，ppt ~1h，全流程 ~4h）
+- 长任务前告知用户步骤名、runDate、预计耗时（trending ~10s 脚本路径；`--use-llm` 回退可能数十分钟；analyze ~2h，ppt ~1h，全流程 ~4h）
 - 单步脚本会把 JSON 写入 `artifacts/<date>/.pipeline/<step>.json`；下一步自动读上一步 state
 - 若 state 已存在且用户未要求重跑，提示加 `--force` 或先清理
 

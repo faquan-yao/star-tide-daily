@@ -37,6 +37,7 @@ require_file "workflow star-tide-daily.lobster" "$ROOT/workflows/star-tide-daily
 require_file "pipeline-agent.mjs" "$ROOT/scripts/pipeline-agent.mjs"
 require_file "run-pipeline-step.mjs" "$ROOT/scripts/run-pipeline-step.mjs"
 require_file "pipeline-steps.mjs" "$ROOT/scripts/pipeline-steps.mjs"
+require_file "fetch-github-trending.mjs" "$ROOT/scripts/fetch-github-trending.mjs"
 require_file "prompt trending.md" "$ROOT/prompts/trending.md"
 require_file "prompt analyze.md" "$ROOT/prompts/analyze.md"
 require_file "prompt ppt-preview.md" "$ROOT/prompts/ppt-preview.md"
@@ -47,6 +48,7 @@ done
 
 LOBSTER="$ROOT/workflows/star-tide-daily.lobster"
 if grep -q 'id: trending' "$LOBSTER" \
+  && grep -q 'fetch-github-trending.mjs' "$LOBSTER" \
   && grep -q 'id: analyze' "$LOBSTER" \
   && grep -q 'id: ppt_preview' "$LOBSTER" \
   && grep -q 'id: ppt_finalize' "$LOBSTER" \

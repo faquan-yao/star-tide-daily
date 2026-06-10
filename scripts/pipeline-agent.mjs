@@ -390,10 +390,10 @@ async function main() {
 
   if (parsed) {
     process.stdout.write(JSON.stringify(parsed, null, 0));
-  } else if (stdout) {
-    process.stdout.write(stdout);
   } else {
-    console.error("openclaw agent 返回空的 stdout");
+    console.error("openclaw agent 未能拆出步骤契约 JSON");
+    if (stdout) console.error(stdout.slice(0, 500));
+    if (opts.cleanupOnFail) runPipelineCleanup("--all");
     process.exit(1);
   }
 }

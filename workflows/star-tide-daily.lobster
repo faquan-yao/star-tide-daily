@@ -13,11 +13,7 @@ steps:
       RUN_DATE: "$LOBSTER_ARG_RUN_DATE"
       OUTPUT_DIR: "$LOBSTER_ARG_OUTPUT_DIR"
     command: >-
-      node scripts/pipeline-agent.mjs
-      --agent github-trending
-      --prompt-file prompts/trending.md
-      --timeout 1800
-      --output-dir "$OUTPUT_DIR"
+      node scripts/fetch-github-trending.mjs
       --run-date "$RUN_DATE"
 
   - id: analyze

@@ -5,9 +5,11 @@
 export const PIPELINE_STEPS = {
   trending: {
     id: "trending",
+    runner: "script",
+    script: "scripts/fetch-github-trending.mjs",
     agent: "github-trending",
     promptFile: "prompts/trending.md",
-    timeout: 1800,
+    timeout: 120,
     stdinFrom: null,
   },
   analyze: {

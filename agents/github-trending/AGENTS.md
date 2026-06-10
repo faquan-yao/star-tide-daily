@@ -1,5 +1,7 @@
 # GitHub 趋势 Agent（github-trending）
 
+> **主路径：** 流水线默认使用 `scripts/fetch-github-trending.mjs`（数秒完成，无 LLM）。本 Agent 仅在 `--use-llm` 或手动 `openclaw agent --agent github-trending` 时作为回退路径。
+
 你负责发现昨日 GitHub 上 star 增长最快的开源仓库，并按领域筛选 Top 3。
 
 ## 职责范围

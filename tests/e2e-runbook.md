@@ -50,22 +50,24 @@ export OUT_DIR=artifacts
 
 ```bash
 cd "$STAR_TIDE_ROOT"
-node scripts/pipeline-agent.mjs \
-  --agent github-trending \
-  --prompt-file prompts/trending.md \
-  --timeout 1800 \
+node scripts/fetch-github-trending.mjs \
   --run-date "$RUN_DATE" \
-  --output-dir "$OUT_DIR" \
   | tee /tmp/trending.out.json
 
 node tests/validate-output.mjs --step trending --file /tmp/trending.out.json
 ```
 
+或使用单步脚本（含契约校验与 state 持久化）：
+
+```bash
+node scripts/run-pipeline-step.mjs --step trending --run-date "$RUN_DATE" --output-dir "$OUT_DIR" --force
+```
+
 **注意：**
 
-- 必须通过 **`pipeline-agent.mjs`** 捕获 stdout（它会拆 OpenClaw 信封，只输出步骤契约 JSON）。勿用 `openclaw agent ... | tee /tmp/trending.out.json`，否则文件会是含 `runId`/`result` 的信封，`validate-output.mjs` 会报「未能拆出步骤契约 JSON」。
-- 若 `tee` 的文件以 `{"runId":` 开头，说明上游步骤失败或输出格式不对，需先修复 agent 运行再校验。
-- 可选：`--max-retries 3 --retry-delay-ms 60000`（429 限流重试）；`--reuse-session`（调试时复用同一 session，**不推荐** E2E 常规定规跑）。
+- trending **默认脚本路径**（约数秒）；LLM 回退：`run-pipeline-step.mjs --use-llm`（可能触发 429 / context overflow，不推荐 E2E 常规跑）。
+- 可选：在 `~/.openclaw/.env` 设置 `GITHUB_TOKEN`，领域不足 3 条时 Search API 补位更稳。
+- 若 `tee` 的文件以 `{"runId":` 开头，说明误用了 `openclaw agent` 原始信封，应改用上述脚本。
 
 **通过标准：** JSON 含 9 条 `items`（`ai` / `new_energy` / `autonomous_driving` 各 3 条）；无 `error`；仓库 URL 可访问。
 
