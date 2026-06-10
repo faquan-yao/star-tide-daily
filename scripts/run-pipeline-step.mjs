@@ -10,6 +10,13 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { ARTIFACTS_DIR, PROJECT_ROOT, extractJsonPayload, resolveStarTideRoot } from "./pipeline-agent.mjs";
+import { hasAnalyzeReports, normalizeAnalyzeContract } from "./lib/assemble-analyze.mjs";
+import {
+  hasPptFinalizeContract,
+  hasPptPreviewContract,
+  normalizePptFinalizeContract,
+  normalizePptPreviewContract,
+} from "./lib/assemble-ppt.mjs";
 import {
   getStepDef,
   pipelineStatePath,
@@ -192,8 +199,21 @@ function validateStepOutput(stepId, stdout) {
       parsed,
     };
   }
-  const errors = validateStep(stepId, parsed);
-  return { ok: errors.length === 0, errors, parsed };
+  if (stepId === "analyze" && hasAnalyzeReports(parsed)) {
+    parsed = normalizeAnalyzeContract(parsed);
+  }
+  if (stepId === "ppt_preview" && hasPptPreviewContract(parsed)) {
+    parsed = normalizePptPreviewContract(parsed);
+  }
+  if (stepId === "ppt_finalize" && hasPptFinalizeContract(parsed)) {
+    parsed = normalizePptFinalizeContract(parsed);
+  }
+  const warnings = [];
+  const errors = validateStep(stepId, parsed, {
+    warnings,
+    strict: !["analyze", "ppt_preview", "ppt_finalize"].includes(stepId),
+  });
+  return { ok: errors.length === 0, errors, warnings, parsed };
 }
 
 function saveState(opts, stepId, stdout) {
@@ -249,6 +269,9 @@ async function main() {
   }
 
   const validation = validateStepOutput(stepDef.id, stdout);
+  for (const w of validation.warnings || []) {
+    process.stderr.write(`[run-pipeline-step] 警告: ${w}\n`);
+  }
   if (!validation.ok) {
     console.error(`步骤 ${stepDef.id} 输出未通过契约校验:`);
     for (const e of validation.errors) console.error(`  - ${e}`);

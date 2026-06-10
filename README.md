@@ -250,7 +250,7 @@ openclaw cron add \
 ## 流程说明
 
 1. **trending** — `fetch-github-trending.mjs` 抓取并输出昨日 star 增速分领域 Top 3（三领域共 9 条 JSON；可选 `GITHUB_TOKEN` 补位）
-2. **analyze** — `opensource-analyzer` 克隆并分析 9 个仓库，写入 `artifacts/<date>/`
+2. **analyze** — `opensource-analyzer` 克隆并深度分析 9 个仓库（用途、安装、架构/运行逻辑 Mermaid 图、风险），写入 `artifacts/<date>/`
 3. **ppt_preview** — `ppt-maker` 生成草稿，**需人工 approve**
 4. **ppt_finalize** — 批准后导出 `.pptx`
 

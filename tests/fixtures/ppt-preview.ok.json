@@ -3,7 +3,7 @@
   "phase": "preview",
   "outputDir": "artifacts/2026-06-04/ppt",
   "previewPath": "artifacts/2026-06-04/ppt/preview.md",
-  "slideCount": 24,
-  "pendingApproval": ["第3页数据指标"],
-  "summary": "分领域九项目概览草稿"
+  "slideCount": 40,
+  "pendingApproval": ["第3页架构图"],
+  "summary": "分领域九项目深度分析草稿"
 }

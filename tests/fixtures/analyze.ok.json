@@ -9,9 +9,12 @@
       "url": "https://github.com/openclaw/openclaw",
       "clonePath": "artifacts/2026-06-04/clones/openclaw-openclaw",
       "reportPath": "artifacts/2026-06-04/01-openclaw-openclaw.md",
+      "purpose": "Personal AI assistant agent runtime",
+      "installation": "npm install -g openclaw; openclaw onboard",
+      "architecture": "Monorepo: CLI, gateway, agent workspaces",
       "structure": "monorepo",
       "highlights": ["agent runtime"],
-      "risks": []
+      "risks": ["API surface may change"]
     },
     {
       "category": "ai",
@@ -20,9 +23,12 @@
       "url": "https://github.com/lobehub/lobe-chat",
       "clonePath": "artifacts/2026-06-04/clones/lobehub-lobe-chat",
       "reportPath": "artifacts/2026-06-04/02-lobehub-lobe-chat.md",
+      "purpose": "Chat UI for LLM models",
+      "installation": "pnpm install; pnpm dev",
+      "architecture": "Next.js app with chat modules",
       "structure": "next app",
       "highlights": ["chat ui"],
-      "risks": []
+      "risks": ["Heavy frontend dependencies"]
     },
     {
       "category": "ai",
@@ -31,9 +37,12 @@
       "url": "https://github.com/langgenius/dify",
       "clonePath": "artifacts/2026-06-04/clones/langgenius-dify",
       "reportPath": "artifacts/2026-06-04/03-langgenius-dify.md",
+      "purpose": "LLM application development platform",
+      "installation": "Docker compose per README",
+      "architecture": "Python API + web console",
       "structure": "python api",
       "highlights": ["llm ops"],
-      "risks": []
+      "risks": ["Docker required for full stack"]
     },
     {
       "category": "new_energy",
@@ -42,9 +51,12 @@
       "url": "https://github.com/openems/openems",
       "clonePath": "artifacts/2026-06-04/clones/openems-openems",
       "reportPath": "artifacts/2026-06-04/04-openems-openems.md",
+      "purpose": "Open source energy management",
+      "installation": "Java build per README",
+      "architecture": "Java modular EMS",
       "structure": "java modular",
       "highlights": ["energy management"],
-      "risks": []
+      "risks": ["Complex Java deployment"]
     },
     {
       "category": "new_energy",
@@ -53,9 +65,12 @@
       "url": "https://github.com/pvlib/pvlib-python",
       "clonePath": "artifacts/2026-06-04/clones/pvlib-pvlib-python",
       "reportPath": "artifacts/2026-06-04/05-pvlib-pvlib-python.md",
+      "purpose": "Photovoltaic system modeling library",
+      "installation": "pip install pvlib",
+      "architecture": "Python scientific library",
       "structure": "python library",
       "highlights": ["pv modeling"],
-      "risks": []
+      "risks": ["Niche domain expertise needed"]
     },
     {
       "category": "new_energy",
@@ -64,9 +79,12 @@
       "url": "https://github.com/NREL/EnergyPlus",
       "clonePath": "artifacts/2026-06-04/clones/NREL-EnergyPlus",
       "reportPath": "artifacts/2026-06-04/06-NREL-EnergyPlus.md",
+      "purpose": "Building energy simulation",
+      "installation": "Build from source or binaries",
+      "architecture": "C++ simulation core",
       "structure": "c++ simulation",
       "highlights": ["building energy"],
-      "risks": []
+      "risks": ["Large binary build"]
     },
     {
       "category": "autonomous_driving",
@@ -75,9 +93,12 @@
       "url": "https://github.com/autowarefoundation/autoware",
       "clonePath": "artifacts/2026-06-04/clones/autowarefoundation-autoware",
       "reportPath": "artifacts/2026-06-04/07-autowarefoundation-autoware.md",
+      "purpose": "Autonomous driving software stack",
+      "installation": "ROS2 workspace build",
+      "architecture": "ROS2 modular stack",
       "structure": "ros2 stack",
       "highlights": ["autonomous driving"],
-      "risks": []
+      "risks": ["ROS2 setup complexity"]
     },
     {
       "category": "autonomous_driving",
@@ -86,9 +107,12 @@
       "url": "https://github.com/commaai/openpilot",
       "clonePath": "artifacts/2026-06-04/clones/commaai-openpilot",
       "reportPath": "artifacts/2026-06-04/08-commaai-openpilot.md",
+      "purpose": "Open source driver assistance",
+      "installation": "Device-specific setup per docs",
+      "architecture": "Python and C perception stack",
       "structure": "python c",
       "highlights": ["adas"],
-      "risks": []
+      "risks": ["Hardware-specific deployment"]
     },
     {
       "category": "autonomous_driving",
@@ -97,9 +121,12 @@
       "url": "https://github.com/ApolloAuto/apollo",
       "clonePath": "artifacts/2026-06-04/clones/ApolloAuto-apollo",
       "reportPath": "artifacts/2026-06-04/09-ApolloAuto-apollo.md",
+      "purpose": "Self-driving open platform",
+      "installation": "Docker-based dev environment",
+      "architecture": "C++ modular autonomy platform",
       "structure": "c++ modules",
       "highlights": ["self-driving platform"],
-      "risks": []
+      "risks": ["Large monorepo, steep onboarding"]
     }
   ]
 }

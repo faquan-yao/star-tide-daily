@@ -19,6 +19,27 @@ import {
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import {
+  assembleAnalyzeContract,
+  hasAnalyzeReports,
+  isOpenClawEnvelope,
+  loadTrendingSources,
+  normalizeAnalyzeContract,
+  recoverAnalyzeFromEnvelope,
+  warnPartialAnalyze,
+} from "./lib/assemble-analyze.mjs";
+import {
+  extractAgentFailureReason,
+  hasPptFinalizeContract,
+  hasPptPreviewContract,
+  normalizePptFinalizeContract,
+  normalizePptPreviewContract,
+  recoverPptFinalizeFromPipeline,
+  recoverPptPreviewFromPipeline,
+  warnPartialPptFinalize,
+  warnPartialPptPreview,
+} from "./lib/assemble-ppt.mjs";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, "..");
 /** 流水线运行产物根目录（相对 STAR_TIDE_ROOT）：artifacts/<date>/、artifacts/<date>/clones/、artifacts/<date>/ppt/ */
@@ -117,15 +138,30 @@ function buildMessage(template, stdin, { runDate, outputDir, starTideRoot, agent
       `\n\n【路径强制】克隆必须使用绝对路径目录：${clonesAbs}/owner-repo（示例：git clone --depth 1 <url> "${clonesAbs}/owner-repo"）。`,
       `分析报告写入：${reportsAbs}/01-owner-repo.md。`,
       "禁止在 agents/opensource-analyzer/ 工作区根目录下创建仓库文件夹或报告文件。",
+      "每份报告须含五节（用途、安装、架构、运行逻辑、风险）及 2 个 mermaid 图；JSON 须含 purpose、installation、architecture、risks（至少 1 条）。",
     );
+    const reportTemplatePath = resolve(PROJECT_ROOT, "prompts/analyze-report-template.md");
+    if (existsSync(reportTemplatePath)) {
+      parts.push("\n\n---\n报告模板（reportPath 必须遵守）：\n");
+      parts.push(readFileSync(reportTemplatePath, "utf8"));
+    }
   }
   if (stdin) {
     parts.push("\n\n---\n上一步输出（JSON）：\n");
     parts.push(stdin);
   }
-  parts.push(
-    "\n\n---\n仅回复单个 JSON 对象（不要用 markdown 代码块，不要附加说明文字）。遵守 AGENTS.md 中的输出契约。",
-  );
+  if (agent === "opensource-analyzer") {
+    parts.push(
+      "\n\n---\n【执行顺序】",
+      "1. 使用工具完成 9 个仓库克隆与 9 份 markdown 报告（此阶段可使用 exec/read/write）。",
+      "2. 全部报告落盘后，**最后一轮回复**必须且只能输出 AGENTS.md 中的契约 JSON（禁止再调用任何工具；不要用 markdown 代码块；不要附加说明文字）。",
+      "未完成全部报告前不要输出最终 JSON。",
+    );
+  } else {
+    parts.push(
+      "\n\n---\n仅回复单个 JSON 对象（不要用 markdown 代码块，不要附加说明文字）。遵守 AGENTS.md 中的输出契约。",
+    );
+  }
   return parts.join("");
 }
 
@@ -200,12 +236,12 @@ function runOpenClawAgent(agent, message, timeoutSec, { sessionKey } = {}) {
 async function runOpenClawAgentWithRetry(agent, message, timeoutSec, opts) {
   const maxRetries = opts.maxRetries ?? 3;
   const baseDelayMs = opts.retryDelayMs ?? 60_000;
-  let sessionKey = opts.reuseSession ? undefined : buildSessionKey(agent, opts.runDate);
+  let sessionKey = opts.sessionKey || (opts.reuseSession ? undefined : buildSessionKey(agent, opts.runDate));
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const result = await runOpenClawAgent(agent, message, timeoutSec, { sessionKey });
-    if (!isRateLimitFailure(result)) return result;
-    if (attempt === maxRetries) return result;
+    if (!isRateLimitFailure(result)) return { ...result, sessionKey };
+    if (attempt === maxRetries) return { ...result, sessionKey };
     const delay = baseDelayMs * 2 ** attempt;
     console.error(`[pipeline] API 限流，${delay / 1000}s 后重试 (${attempt + 1}/${maxRetries})...`);
     await sleep(delay);
@@ -213,6 +249,133 @@ async function runOpenClawAgentWithRetry(agent, message, timeoutSec, opts) {
   }
 
   throw new Error("runOpenClawAgentWithRetry: unreachable");
+}
+
+function isPptPreviewRun(opts) {
+  return opts.agent === "ppt-maker" && String(opts.promptFile || "").includes("ppt-preview");
+}
+
+function isPptFinalizeRun(opts) {
+  return opts.agent === "ppt-maker" && String(opts.promptFile || "").includes("ppt-finalize");
+}
+
+function isContractOk(parsed, opts) {
+  if (!parsed || isOpenClawEnvelope(parsed)) return false;
+  if (opts.agent === "opensource-analyzer") return hasAnalyzeReports(parsed);
+  if (isPptPreviewRun(opts)) return hasPptPreviewContract(parsed);
+  if (isPptFinalizeRun(opts)) return hasPptFinalizeContract(parsed);
+  return true;
+}
+
+function finalizePptPreviewContract(parsed, agent) {
+  if (!hasPptPreviewContract(parsed)) return parsed;
+  const out = normalizePptPreviewContract(relocateAgentArtifacts(parsed, agent));
+  warnPartialPptPreview(out, "pipeline-agent ");
+  return out;
+}
+
+function ensurePptPreviewContract(opts, stdin, firstResult) {
+  let parsed = normalizePptPreviewContract(extractJsonPayload(firstResult.stdout));
+  if (hasPptPreviewContract(parsed) && !isOpenClawEnvelope(parsed)) {
+    return finalizePptPreviewContract(parsed, opts.agent);
+  }
+
+  const reason =
+    extractAgentFailureReason(firstResult.stdout) ||
+    (firstResult.code !== 0 ? `agent 退出码 ${firstResult.code}` : "未返回契约 JSON");
+
+  const fallback = recoverPptPreviewFromPipeline({
+    runDate: opts.runDate,
+    outputDir: opts.outputDir,
+    stdin,
+    reason,
+  });
+  if (fallback) {
+    process.stderr.write(`[pipeline-agent] ppt_preview 降级草稿: ${fallback.summary}\n`);
+    return finalizePptPreviewContract(fallback, opts.agent);
+  }
+
+  return parsed;
+}
+
+function finalizePptFinalizeContract(parsed, agent) {
+  if (!hasPptFinalizeContract(parsed)) return parsed;
+  const out = normalizePptFinalizeContract(relocateAgentArtifacts(parsed, agent));
+  warnPartialPptFinalize(out, "pipeline-agent ");
+  return out;
+}
+
+function ensurePptFinalizeContract(opts, stdin, firstResult) {
+  let parsed = normalizePptFinalizeContract(extractJsonPayload(firstResult.stdout));
+  if (hasPptFinalizeContract(parsed) && !isOpenClawEnvelope(parsed)) {
+    return finalizePptFinalizeContract(parsed, opts.agent);
+  }
+
+  const reason =
+    extractAgentFailureReason(firstResult.stdout) ||
+    (firstResult.code !== 0 ? `agent 退出码 ${firstResult.code}` : "未返回契约 JSON");
+
+  const fallback = recoverPptFinalizeFromPipeline({
+    runDate: opts.runDate,
+    outputDir: opts.outputDir,
+    stdin,
+    reason,
+  });
+  if (fallback) {
+    process.stderr.write(`[pipeline-agent] ppt_finalize 降级: ${fallback.delivery?.notes}\n`);
+    return finalizePptFinalizeContract(fallback, opts.agent);
+  }
+
+  return parsed;
+}
+
+function finalizeAnalyzeContract(parsed, agent) {
+  if (!hasAnalyzeReports(parsed)) return parsed;
+  const out = normalizeAnalyzeContract(relocateAgentArtifacts(parsed, agent));
+  warnPartialAnalyze(out, "pipeline-agent ");
+  return out;
+}
+
+async function ensureAnalyzeContract(opts, stdin, firstResult) {
+  const starTideRoot = resolveStarTideRoot();
+  const runDate = opts.runDate || todayDate();
+  let parsed = relocateAgentArtifacts(extractJsonPayload(firstResult.stdout), opts.agent);
+
+  if (hasAnalyzeReports(parsed)) return finalizeAnalyzeContract(parsed, opts.agent);
+
+  relocateMisplacedAnalyzerWorkspace(opts.agent, runDate, opts.outputDir);
+
+  const trending = loadTrendingSources({
+    runDate,
+    outputDir: opts.outputDir,
+    trendingStdin: stdin,
+    root: starTideRoot,
+  });
+
+  if (trending) {
+    try {
+      parsed = assembleAnalyzeContract({
+        runDate,
+        outputDir: opts.outputDir,
+        trendingStdin: stdin,
+        root: starTideRoot,
+      });
+      process.stderr.write(
+        `[pipeline-agent] 已从磁盘组装 analyze 契约（${parsed.reports.length}/${parsed.expectedCount || 9} 份报告）\n`,
+      );
+      return finalizeAnalyzeContract(parsed, opts.agent);
+    } catch {
+      // fall through
+    }
+  }
+
+  const fromEnvelope = recoverAnalyzeFromEnvelope(firstResult.stdout, { trendingStdin: stdin });
+  if (hasAnalyzeReports(fromEnvelope)) {
+    process.stderr.write("[pipeline-agent] 已从信封上下文组装 analyze 契约 JSON\n");
+    return finalizeAnalyzeContract(fromEnvelope, opts.agent);
+  }
+
+  return parsed;
 }
 
 function registerSignalHandlers(cleanupOnFail) {
@@ -301,9 +464,16 @@ function unwrapOpenClawAgentResponse(parsed) {
     result.finalAssistantRawText,
   ];
 
+  for (const payload of result.payloads || []) {
+    if (typeof payload?.text === "string") {
+      const fromPayload = tryParseContractJson(payload.text);
+      if (fromPayload && (fromPayload.reports || fromPayload.items || fromPayload.phase)) return fromPayload;
+    }
+  }
+
   for (const candidate of candidates) {
     const contract = tryParseContractJson(candidate);
-    if (contract) return contract;
+    if (contract && (contract.reports || contract.items || contract.phase)) return contract;
   }
 
   const fromSession = loadContractFromSession(result.meta?.agentMeta?.sessionFile);
@@ -432,22 +602,50 @@ async function main() {
   let code;
   let stdout;
   let stderr;
+  let sessionKey;
   try {
-    ({ code, stdout, stderr } = await runOpenClawAgentWithRetry(opts.agent, message, opts.timeout, {
+    ({ code, stdout, stderr, sessionKey } = await runOpenClawAgentWithRetry(opts.agent, message, opts.timeout, {
       runDate: opts.runDate,
       reuseSession: opts.reuseSession,
       maxRetries: opts.maxRetries,
       retryDelayMs: opts.retryDelayMs,
     }));
   } catch (err) {
+    if (isPptPreviewRun(opts)) {
+      const fallback = recoverPptPreviewFromPipeline({
+        runDate: opts.runDate,
+        outputDir: opts.outputDir,
+        stdin,
+        reason: err.message || "agent 异常",
+      });
+      if (fallback) {
+        process.stderr.write("[pipeline-agent] ppt agent 异常，已输出 ppt_preview 降级契约 JSON\n");
+        process.stdout.write(JSON.stringify(finalizePptPreviewContract(fallback, opts.agent), null, 0));
+        return;
+      }
+    }
+    if (isPptFinalizeRun(opts)) {
+      const fallback = recoverPptFinalizeFromPipeline({
+        runDate: opts.runDate,
+        outputDir: opts.outputDir,
+        stdin,
+        reason: err.message || "agent 异常",
+      });
+      if (fallback) {
+        process.stderr.write("[pipeline-agent] ppt agent 异常，已输出 ppt_finalize 降级契约 JSON\n");
+        process.stdout.write(JSON.stringify(finalizePptFinalizeContract(fallback, opts.agent), null, 0));
+        return;
+      }
+    }
     if (opts.cleanupOnFail) runPipelineCleanup("--all");
     console.error(err.message || err);
     process.exit(1);
   }
 
   let parsed = relocateAgentArtifacts(extractJsonPayload(stdout), opts.agent);
-  if (parsed && opts.agent === "opensource-analyzer") {
-    const runDate = parsed.date || opts.runDate || todayDate();
+  if (opts.agent === "opensource-analyzer") {
+    parsed = await ensureAnalyzeContract(opts, stdin, { stdout, sessionKey });
+    const runDate = parsed?.date || opts.runDate || todayDate();
     const moved = relocateMisplacedAnalyzerWorkspace(opts.agent, runDate, opts.outputDir);
     if (moved.length > 0) {
       process.stderr.write(
@@ -455,16 +653,26 @@ async function main() {
       );
       parsed = relocateAgentArtifacts(parsed, opts.agent);
     }
+  } else if (isPptPreviewRun(opts)) {
+    parsed = ensurePptPreviewContract(opts, stdin, { stdout, code });
+  } else if (isPptFinalizeRun(opts)) {
+    parsed = ensurePptFinalizeContract(opts, stdin, { stdout, code });
   }
 
-  if (code !== 0) {
+  const contractOk = isContractOk(parsed, opts);
+
+  if (code !== 0 && !contractOk) {
     console.error(`openclaw agent 退出码: ${code}`);
     if (stderr) console.error(stderr);
     if (opts.cleanupOnFail) runPipelineCleanup("--all");
     process.exit(code || 1);
   }
 
-  if (parsed) {
+  if (code !== 0 && contractOk) {
+    process.stderr.write(`[pipeline-agent] agent 退出码 ${code}，已输出降级契约 JSON\n`);
+  }
+
+  if (contractOk) {
     process.stdout.write(JSON.stringify(parsed, null, 0));
   } else {
     console.error("openclaw agent 未能拆出步骤契约 JSON");

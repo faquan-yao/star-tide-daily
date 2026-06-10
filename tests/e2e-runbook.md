@@ -89,11 +89,11 @@ node tests/validate-output.mjs --step analyze --file /tmp/analyze.out.json --che
 
 **通过标准：**
 
-- `reports.length === 9`（三领域各 3 条）
-- `artifacts/$RUN_DATE/01-*.md` … `09-*.md` 共 9 个文件存在（`pipeline-agent.mjs` 会自动将 agent 工作区下的产物迁移/链接到项目根目录）
+- `reports.length === 9`（三领域各 3 条）；每条含 `purpose`、`installation`、`architecture`、`risks`（至少 1 条）
+- `artifacts/$RUN_DATE/01-*.md` … `09-*.md` 共 9 个文件存在；每份报告含五节（用途、安装、架构、运行逻辑、风险）及 **2 个** `mermaid` 代码块
 - `artifacts/$RUN_DATE/clones/` 下 9 个克隆目录存在
 
-若校验提示报告文件缺失，但文件实际在 `agents/opensource-analyzer/reports/` 下，说明是旧版未迁移；重新执行本步骤的 `pipeline-agent.mjs` 命令即可（无需重跑 agent）。
+若校验提示报告文件缺失，但文件实际在 `agents/opensource-analyzer/` 工作区下，重新执行本步骤（`pipeline-agent.mjs` 会自动迁到 `artifacts/`）。
 
 ---
 

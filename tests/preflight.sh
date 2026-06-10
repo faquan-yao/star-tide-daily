@@ -40,6 +40,7 @@ require_file "pipeline-steps.mjs" "$ROOT/scripts/pipeline-steps.mjs"
 require_file "fetch-github-trending.mjs" "$ROOT/scripts/fetch-github-trending.mjs"
 require_file "prompt trending.md" "$ROOT/prompts/trending.md"
 require_file "prompt analyze.md" "$ROOT/prompts/analyze.md"
+require_file "prompt analyze-report-template.md" "$ROOT/prompts/analyze-report-template.md"
 require_file "prompt ppt-preview.md" "$ROOT/prompts/ppt-preview.md"
 require_file "prompt ppt-finalize.md" "$ROOT/prompts/ppt-finalize.md"
 for agent in main github-trending opensource-analyzer ppt-maker; do
