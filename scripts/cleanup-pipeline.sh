@@ -98,16 +98,30 @@ clean_project_artifacts() {
 }
 
 clean_workspace_misplaced_clones() {
-  local git_dir clone_root
+  local git_dir clone_root dest date_dir clones_dir repo_name
   while IFS= read -r -d '' git_dir; do
     clone_root="$(dirname "$git_dir")"
     case "$clone_root" in
-      "$ROOT"/agents/*)
+      "$ROOT"/agents/*/*)
+        repo_name="$(basename "$clone_root")"
+        if [[ -d "$ROOT/artifacts" ]]; then
+          date_dir="$(find "$ROOT/artifacts" -mindepth 1 -maxdepth 1 -type d ! -name '.pipeline' 2>/dev/null | sort | tail -1)"
+          if [[ -n "$date_dir" ]]; then
+            clones_dir="$date_dir/clones"
+            mkdir -p "$clones_dir"
+            dest="$clones_dir/$repo_name"
+            if [[ ! -e "$dest" ]]; then
+              log "relocate misplaced clone to artifacts: $clone_root -> $dest"
+              mv "$clone_root" "$dest"
+              continue
+            fi
+          fi
+        fi
         log "remove misplaced clone: $clone_root"
         rm -rf "$clone_root"
         ;;
     esac
-  done < <(find "$ROOT/agents" -mindepth 3 -maxdepth 4 -type d -name .git -print0 2>/dev/null || true)
+  done < <(find "$ROOT/agents" -mindepth 3 -maxdepth 5 -type d -name .git -print0 2>/dev/null || true)
 }
 
 prune_agent_sessions() {

@@ -6,7 +6,16 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  symlinkSync,
+} from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -83,7 +92,17 @@ function resolveStarTideRoot() {
   return process.env.STAR_TIDE_ROOT || PROJECT_ROOT;
 }
 
-function buildMessage(template, stdin, { runDate, outputDir, starTideRoot }) {
+const WORKSPACE_ROOT_FILES = new Set([
+  "AGENTS.md",
+  "BOOTSTRAP.md",
+  "HEARTBEAT.md",
+  "IDENTITY.md",
+  "SOUL.md",
+  "TOOLS.md",
+  "USER.md",
+]);
+
+function buildMessage(template, stdin, { runDate, outputDir, starTideRoot, agent }) {
   const parts = [template.trim()];
   if (runDate) parts.push(`\n\nrunDate: ${runDate}`);
   parts.push(`\n\nSTAR_TIDE_ROOT: ${starTideRoot}`);
@@ -91,6 +110,15 @@ function buildMessage(template, stdin, { runDate, outputDir, starTideRoot }) {
   parts.push(
     "\n\n所有文件路径（reportPath、clonePath、previewPath、files 等）均以 STAR_TIDE_ROOT 为根目录，写入 artifacts/<date>/（报告）、artifacts/<date>/clones/（克隆）、artifacts/<date>/ppt/（PPT）；勿写入 agent 工作区子目录。",
   );
+  if (agent === "opensource-analyzer" && runDate) {
+    const clonesAbs = resolve(starTideRoot, outputDir, runDate, "clones");
+    const reportsAbs = resolve(starTideRoot, outputDir, runDate);
+    parts.push(
+      `\n\n【路径强制】克隆必须使用绝对路径目录：${clonesAbs}/owner-repo（示例：git clone --depth 1 <url> "${clonesAbs}/owner-repo"）。`,
+      `分析报告写入：${reportsAbs}/01-owner-repo.md。`,
+      "禁止在 agents/opensource-analyzer/ 工作区根目录下创建仓库文件夹或报告文件。",
+    );
+  }
   if (stdin) {
     parts.push("\n\n---\n上一步输出（JSON）：\n");
     parts.push(stdin);
@@ -343,6 +371,43 @@ function relocateAgentArtifacts(payload, agent) {
   return payload;
 }
 
+/** 将误放在 agents/<agent>/ 根下的克隆目录与报告迁到 artifacts/<date>/ */
+function relocateMisplacedAnalyzerWorkspace(agent, runDate, outputDir = ARTIFACTS_DIR) {
+  if (agent !== "opensource-analyzer" || !runDate) return [];
+  const workspace = resolve(PROJECT_ROOT, "agents", agent);
+  if (!existsSync(workspace)) return [];
+
+  const root = resolveStarTideRoot();
+  const dateDir = resolve(root, outputDir, runDate);
+  const clonesDir = resolve(dateDir, "clones");
+  mkdirSync(clonesDir, { recursive: true });
+  mkdirSync(dateDir, { recursive: true });
+
+  const moved = [];
+  for (const name of readdirSync(workspace)) {
+    if (name === ".openclaw" || WORKSPACE_ROOT_FILES.has(name)) continue;
+
+    const src = resolve(workspace, name);
+    if (!existsSync(src)) continue;
+
+    let dest;
+    if (lstatSync(src).isDirectory()) {
+      if (!existsSync(resolve(src, ".git"))) continue;
+      dest = resolve(clonesDir, name);
+    } else if (/^\d{2}-.+\.md$/i.test(name)) {
+      dest = resolve(dateDir, name);
+    } else {
+      continue;
+    }
+
+    if (existsSync(dest)) continue;
+    mkdirSync(dirname(dest), { recursive: true });
+    renameSync(src, dest);
+    moved.push({ from: src, to: dest });
+  }
+  return moved;
+}
+
 async function main() {
   const opts = parseArgs(process.argv);
   registerSignalHandlers(opts.cleanupOnFail);
@@ -361,6 +426,7 @@ async function main() {
     runDate: opts.runDate,
     outputDir: opts.outputDir,
     starTideRoot,
+    agent: opts.agent,
   });
 
   let code;
@@ -379,7 +445,17 @@ async function main() {
     process.exit(1);
   }
 
-  const parsed = relocateAgentArtifacts(extractJsonPayload(stdout), opts.agent);
+  let parsed = relocateAgentArtifacts(extractJsonPayload(stdout), opts.agent);
+  if (parsed && opts.agent === "opensource-analyzer") {
+    const runDate = parsed.date || opts.runDate || todayDate();
+    const moved = relocateMisplacedAnalyzerWorkspace(opts.agent, runDate, opts.outputDir);
+    if (moved.length > 0) {
+      process.stderr.write(
+        `[pipeline-agent] 已从 agent 工作区迁出 ${moved.length} 项到 artifacts/${runDate}/\n`,
+      );
+      parsed = relocateAgentArtifacts(parsed, opts.agent);
+    }
+  }
 
   if (code !== 0) {
     console.error(`openclaw agent 退出码: ${code}`);
@@ -418,6 +494,7 @@ export {
   extractJsonPayload,
   relocateFromAgentWorkspace,
   relocateAgentArtifacts,
+  relocateMisplacedAnalyzerWorkspace,
   killChildTree,
   runPipelineCleanup,
 };

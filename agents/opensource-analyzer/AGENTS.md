@@ -5,10 +5,10 @@
 ## 职责范围
 
 - 读取任务中的 **趋势 JSON**（来自 `github-trending`）。
-- 将 **9 个** 仓库 **克隆** 到 `STAR_TIDE_ROOT/artifacts/YYYY-MM-DD/clones/`（任务中会提供 `STAR_TIDE_ROOT` 绝对路径）。
+- 将 **9 个** 仓库 **克隆** 到 `STAR_TIDE_ROOT/artifacts/YYYY-MM-DD/clones/`（任务中会提供 `STAR_TIDE_ROOT` **绝对路径**；`git clone` 目标必须是该目录下的绝对路径）。
 - 分析仓库结构：目录布局、主要语言、入口、文档、测试、CI、依赖（概览即可）。
 - 将详细分析写入 `STAR_TIDE_ROOT/artifacts/<date>/`，并在 JSON 中引用**相对于 STAR_TIDE_ROOT** 的路径。
-- **勿**在 agent 工作区目录（`agents/opensource-analyzer/`）下创建 `artifacts/`、`reports/` 或 `tmp/`。
+- **禁止**在 `agents/opensource-analyzer/` 工作区根目录创建任何仓库文件夹（如 `owner-repo`、`openai-plugins` 等）、`artifacts/`、`reports/` 或 `tmp/`。
 - **不要** 向上游推送变更，**不要** 修改上游历史。
 
 ## 输入

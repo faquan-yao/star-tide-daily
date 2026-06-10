@@ -28,6 +28,7 @@ import {
   extractJsonPayload,
   isRateLimitFailure,
   relocateAgentArtifacts,
+  relocateMisplacedAnalyzerWorkspace,
   tryParseContractJson,
   tryRepairTruncatedJson,
 } from "../scripts/pipeline-agent.mjs";
@@ -236,6 +237,22 @@ test("L1-07b relocateAgentArtifacts symlinks directories from agent workspace", 
   } finally {
     rmSync(join(PROJECT_ROOT, "agents", "opensource-analyzer", "artifacts"), { recursive: true, force: true });
     rmSync(join(PROJECT_ROOT, "artifacts", "2099-01-01"), { recursive: true, force: true });
+  }
+});
+
+test("L1-07c relocateMisplacedAnalyzerWorkspace moves clone dirs from agent root", () => {
+  const misplaced = join(PROJECT_ROOT, "agents", "opensource-analyzer", "misplaced-clone-test");
+  const dest = join(PROJECT_ROOT, "artifacts", "2099-01-02", "clones", "misplaced-clone-test");
+  mkdirSync(join(misplaced, ".git"), { recursive: true });
+  writeFileSync(join(misplaced, "README.md"), "misplaced\n", "utf8");
+  try {
+    const moved = relocateMisplacedAnalyzerWorkspace("opensource-analyzer", "2099-01-02", "artifacts");
+    assert.ok(moved.some((m) => m.to.endsWith("misplaced-clone-test")));
+    assert.ok(existsSync(dest));
+    assert.match(readFileSync(join(dest, "README.md"), "utf8"), /misplaced/);
+    assert.equal(existsSync(misplaced), false);
+  } finally {
+    rmSync(join(PROJECT_ROOT, "artifacts", "2099-01-02"), { recursive: true, force: true });
   }
 });
 
