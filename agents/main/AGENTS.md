@@ -82,6 +82,7 @@
 
 ### 禁止事项
 
+- **单步指令不得串步：** 用户只要求 trending / analyze / ppt 预览等**一步**时，完成该步后**必须停止**，不得自动 `exec` 下一步（例如「跑 trending」后不得启动 analyze）
 - Lobster **全流程**中未经 `ppt_preview` 审批不得定稿 PPT
 - 单步 `ppt_finalize` 仅在用户**明确**要求时执行（不主动建议跳过审批）
 - 不得跳过 analyze 直接 preview（除非 `.pipeline/analyze.json` 或用户指定 `--stdin-file` 已存在）
