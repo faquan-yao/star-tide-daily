@@ -139,6 +139,7 @@ function buildMessage(template, stdin, { runDate, outputDir, starTideRoot, agent
       `分析报告写入：${reportsAbs}/01-owner-repo.md。`,
       "禁止在 agents/opensource-analyzer/ 工作区根目录下创建仓库文件夹或报告文件。",
       "每份报告须含五节（用途、安装、架构、运行逻辑、风险）及 2 个 mermaid 图；JSON 须含 purpose、installation、architecture、risks（至少 1 条）。",
+      "§3/§4 须用 Skill codebase-knowledge-builder（Phase 1 Recon → Phase 2 Deep-Dive → Phase 3 合成到报告模板）；中间笔记写入 artifacts/<date>/.scratch/<owner-repo>/，勿用 knowledge_artifact.md 作为最终报告。",
     );
     const reportTemplatePath = resolve(PROJECT_ROOT, "prompts/analyze-report-template.md");
     if (existsSync(reportTemplatePath)) {
@@ -153,8 +154,8 @@ function buildMessage(template, stdin, { runDate, outputDir, starTideRoot, agent
   if (agent === "opensource-analyzer") {
     parts.push(
       "\n\n---\n【执行顺序】",
-      "1. 使用工具完成 9 个仓库克隆与 9 份 markdown 报告（此阶段可使用 exec/read/write）。",
-      "2. 全部报告落盘后，**最后一轮回复**必须且只能输出 AGENTS.md 中的契约 JSON（禁止再调用任何工具；不要用 markdown 代码块；不要附加说明文字）。",
+      "1. 使用工具完成 9 个仓库克隆；每个仓库按 codebase-knowledge-builder 完成 Recon + Deep-Dive 后再写该仓库的最终 markdown 报告（此阶段可使用 exec/read/write）。",
+      "2. 全部 9 份报告落盘后，**最后一轮回复**必须且只能输出 AGENTS.md 中的契约 JSON（禁止再调用任何工具；不要用 markdown 代码块；不要附加说明文字）。",
       "未完成全部报告前不要输出最终 JSON。",
     );
   } else {

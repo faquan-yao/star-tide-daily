@@ -46,6 +46,7 @@ require_file "prompt ppt-finalize.md" "$ROOT/prompts/ppt-finalize.md"
 for agent in main github-trending opensource-analyzer ppt-maker; do
   require_file "agent $agent AGENTS.md" "$ROOT/agents/$agent/AGENTS.md"
 done
+require_file "skill codebase-knowledge-builder" "$ROOT/agents/opensource-analyzer/skills/codebase-knowledge-builder/SKILL.md"
 
 LOBSTER="$ROOT/workflows/star-tide-daily.lobster"
 if grep -q 'id: trending' "$LOBSTER" \

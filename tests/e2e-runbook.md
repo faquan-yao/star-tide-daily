@@ -92,6 +92,7 @@ node tests/validate-output.mjs --step analyze --file /tmp/analyze.out.json --che
 - `reports.length === 9`（三领域各 3 条）；每条含 `purpose`、`installation`、`architecture`、`risks`（至少 1 条）
 - `artifacts/$RUN_DATE/01-*.md` … `09-*.md` 共 9 个文件存在；每份报告含五节（用途、安装、架构、运行逻辑、风险）及 **2 个** `mermaid` 代码块
 - `artifacts/$RUN_DATE/clones/` 下 9 个克隆目录存在
+- （可选）`artifacts/$RUN_DATE/.scratch/<owner-repo>/` 下应有 Recon / Deep-Dive 中间笔记；agent 使用 Skill `codebase-knowledge-builder` 时应产生
 
 若校验提示报告文件缺失，但文件实际在 `agents/opensource-analyzer/` 工作区下，重新执行本步骤（`pipeline-agent.mjs` 会自动迁到 `artifacts/`）。
 

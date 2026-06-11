@@ -126,6 +126,8 @@ openclaw agents add opensource-analyzer --workspace "$STAR_TIDE_ROOT/agents/open
 openclaw agents add ppt-maker --workspace "$STAR_TIDE_ROOT/agents/ppt-maker"
 ```
 
+`opensource-analyzer` 工作区已包含 Skill **`codebase-knowledge-builder`**（`agents/opensource-analyzer/skills/codebase-knowledge-builder/`），用于 analyze 步骤的架构/运行逻辑深度分析；随仓库提交，无需额外安装。
+
 > **勿**将 `OPENCLAW_CONFIG_PATH` 指向仓库内的 `openclaw.json.example`，否则 `plugins install` 会在仓库下生成 `npm/`、`extensions/`。
 
 **备选：** 使用默认 `~/.openclaw/openclaw.json`（不设 `OPENCLAW_CONFIG_PATH`），合并本仓库 `openclaw.json.example` 中的 `agents` 与 `plugins.entries.lobster`，并保证 `.env` 含 `STAR_TIDE_ROOT`。
@@ -250,7 +252,7 @@ openclaw cron add \
 ## 流程说明
 
 1. **trending** — `fetch-github-trending.mjs` 抓取并输出昨日 star 增速分领域 Top 3（三领域共 9 条 JSON；可选 `GITHUB_TOKEN` 补位）
-2. **analyze** — `opensource-analyzer` 克隆并深度分析 9 个仓库（用途、安装、架构/运行逻辑 Mermaid 图、风险），写入 `artifacts/<date>/`
+2. **analyze** — `opensource-analyzer` 克隆并深度分析 9 个仓库（用途、安装、架构/运行逻辑 Mermaid 图、风险），写入 `artifacts/<date>/`；架构与运行逻辑分析使用工作区 Skill [`codebase-knowledge-builder`](agents/opensource-analyzer/skills/codebase-knowledge-builder/)（Recon → Deep-Dive → 合成到报告模板，中间笔记在 `artifacts/<date>/.scratch/`）
 3. **ppt_preview** — `ppt-maker` 生成草稿，**需人工 approve**
 4. **ppt_finalize** — 批准后导出 `.pptx`
 
