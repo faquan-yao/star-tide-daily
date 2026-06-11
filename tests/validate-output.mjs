@@ -367,6 +367,12 @@ function validateLobsterChain() {
     ["stdin: $trending.stdout", "analyze.stdin"],
     ["stdin: $analyze.stdout", "ppt_preview.stdin"],
     ["stdin: $ppt_preview.stdout", "ppt_finalize.stdin"],
+    ["--github-url", "analyze.manualInput"],
+    ["--analyze-report", "ppt_preview.manualInput"],
+    ["--preview-md", "ppt_finalize.manualInput"],
+    ["githubUrl:", "args.githubUrl"],
+    ["analyzeReport:", "args.analyzeReport"],
+    ["previewMd:", "args.previewMd"],
     ["approval: required", "ppt_preview.approval"],
     ["condition: $ppt_preview.approved", "ppt_finalize.condition"],
   ];

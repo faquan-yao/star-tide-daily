@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * 单步运行 star-tide-daily 流水线；步骤间 JSON 持久化到 artifacts/<date>/.pipeline/
- * 用法: node scripts/run-pipeline-step.mjs --step <id> [--run-date YYYY-MM-DD] [--output-dir artifacts] [--stdin-file path] [--force] [--use-llm]
+ * 用法: node scripts/run-pipeline-step.mjs --step <id> [--run-date YYYY-MM-DD] [--output-dir artifacts]
+ *       [--stdin-file path] [--github-url URL] [--analyze-report path] [--preview-md path] [--force] [--use-llm]
  */
 
 import { spawn } from "node:child_process";
@@ -24,6 +25,7 @@ import {
   resolveRunDate,
   STEP_IDS,
 } from "./pipeline-steps.mjs";
+import { resolveStepStdin } from "./lib/build-step-input.mjs";
 import { validateStep } from "../tests/validate-output.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -35,6 +37,9 @@ function parseArgs(argv) {
     runDate: "",
     outputDir: ARTIFACTS_DIR,
     stdinFile: "",
+    githubUrl: "",
+    analyzeReport: "",
+    previewMd: "",
     force: false,
     cleanupOnFail: false,
     reuseSession: false,
@@ -48,6 +53,9 @@ function parseArgs(argv) {
     else if (a === "--run-date" && argv[i + 1]) out.runDate = argv[++i];
     else if (a === "--output-dir" && argv[i + 1]) out.outputDir = argv[++i];
     else if (a === "--stdin-file" && argv[i + 1]) out.stdinFile = argv[++i];
+    else if (a === "--github-url" && argv[i + 1]) out.githubUrl = argv[++i];
+    else if (a === "--analyze-report" && argv[i + 1]) out.analyzeReport = argv[++i];
+    else if (a === "--preview-md" && argv[i + 1]) out.previewMd = argv[++i];
     else if (a === "--max-retries" && argv[i + 1]) out.maxRetries = Number(argv[++i]);
     else if (a === "--retry-delay-ms" && argv[i + 1]) out.retryDelayMs = Number(argv[++i]);
     else if (a === "--force") out.force = true;
@@ -57,7 +65,7 @@ function parseArgs(argv) {
   }
   if (!out.step) {
     console.error(
-      `用法: node scripts/run-pipeline-step.mjs --step ${STEP_IDS.join("|")} [--run-date YYYY-MM-DD] [--output-dir 路径] [--stdin-file 路径] [--force] [--use-llm] [--reuse-session] [--max-retries N] [--retry-delay-ms MS] [--cleanup-on-fail]`,
+      `用法: node scripts/run-pipeline-step.mjs --step ${STEP_IDS.join("|")} [--run-date YYYY-MM-DD] [--output-dir 路径] [--stdin-file 路径] [--github-url URL] [--analyze-report 路径] [--preview-md 路径] [--force] [--use-llm] [--reuse-session] [--max-retries N] [--retry-delay-ms MS] [--cleanup-on-fail]`,
     );
     process.exit(2);
   }
@@ -75,17 +83,48 @@ function resolveStdinPath(opts, stepDef) {
   return resolve(projectRoot(), pipelineStatePath(opts.outputDir, opts.runDate, prev));
 }
 
+function hasManualInput(opts, stepId) {
+  if (stepId === "analyze" && opts.githubUrl) return true;
+  if (stepId === "ppt_preview" && opts.analyzeReport) return true;
+  if (stepId === "ppt_finalize" && opts.previewMd) return true;
+  return false;
+}
+
+function manualInputHint(stepId) {
+  if (stepId === "analyze") return "--github-url <GitHub 项目地址>";
+  if (stepId === "ppt_preview") return "--analyze-report <分析报告.md>";
+  if (stepId === "ppt_finalize") return "--preview-md <预览.md>";
+  return "--stdin-file <上一步 JSON>";
+}
+
 function loadStdin(opts, stepDef) {
-  const path = resolveStdinPath(opts, stepDef);
-  if (!path) return "";
-  if (!existsSync(path)) {
-    const prev = previousStepId(stepDef.id);
-    console.error(
-      `缺少上一步输出: ${path}\n请先运行: node scripts/run-pipeline-step.mjs --step ${prev}${opts.runDate ? ` --run-date ${opts.runDate}` : ""}`,
-    );
-    process.exit(2);
+  if (hasManualInput(opts, stepDef.id)) {
+    return resolveStepStdin(stepDef.id, opts, "");
   }
-  return readFileSync(path, "utf8").trim();
+
+  if (opts.stdinFile) {
+    const path = resolve(projectRoot(), opts.stdinFile);
+    if (!existsSync(path)) {
+      console.error(`stdin 文件不存在: ${path}`);
+      process.exit(2);
+    }
+    return readFileSync(path, "utf8").trim();
+  }
+
+  const path = resolveStdinPath(opts, stepDef);
+  let fallback = "";
+  if (path) {
+    if (!existsSync(path) && !hasManualInput(opts, stepDef.id)) {
+      const prev = previousStepId(stepDef.id);
+      console.error(
+        `缺少上一步输出: ${path}\n请先运行: node scripts/run-pipeline-step.mjs --step ${prev}${opts.runDate ? ` --run-date ${opts.runDate}` : ""}\n或手动传入: ${manualInputHint(stepDef.id)}`,
+      );
+      process.exit(2);
+    }
+    if (existsSync(path)) fallback = readFileSync(path, "utf8").trim();
+  }
+
+  return resolveStepStdin(stepDef.id, opts, fallback);
 }
 
 function resolveRunner(stepDef, opts) {
@@ -112,6 +151,9 @@ function runPipelineAgent(stepDef, opts, stdin) {
     ];
     const runDate = resolveRunDate(opts.runDate);
     if (runDate) args.push("--run-date", runDate);
+    if (opts.githubUrl) args.push("--github-url", opts.githubUrl);
+    if (opts.analyzeReport) args.push("--analyze-report", opts.analyzeReport);
+    if (opts.previewMd) args.push("--preview-md", opts.previewMd);
     if (opts.cleanupOnFail) args.push("--cleanup-on-fail");
     if (opts.reuseSession) args.push("--reuse-session");
 

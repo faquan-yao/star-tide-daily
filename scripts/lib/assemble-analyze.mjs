@@ -179,7 +179,7 @@ export function loadTrendingSources({
   return null;
 }
 
-function extractSection(md, heading) {
+export function extractSection(md, heading) {
   const re = new RegExp(`^## ${heading}\\s*$`, "m");
   const match = re.exec(md);
   if (!match) return "";
@@ -190,7 +190,7 @@ function extractSection(md, heading) {
   return body.trim();
 }
 
-function firstMeaningfulLine(text) {
+export function firstMeaningfulLine(text) {
   for (const line of text.split("\n")) {
     const t = line.trim();
     if (!t || t.startsWith("```") || t === "---") continue;
@@ -200,7 +200,7 @@ function firstMeaningfulLine(text) {
   return "";
 }
 
-function extractRisks(sectionText) {
+export function extractRisks(sectionText) {
   const risks = [];
   for (const line of sectionText.split("\n")) {
     const t = line.trim();

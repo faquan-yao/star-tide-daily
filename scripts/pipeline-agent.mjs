@@ -39,6 +39,7 @@ import {
   warnPartialPptFinalize,
   warnPartialPptPreview,
 } from "./lib/assemble-ppt.mjs";
+import { resolveStepStdin } from "./lib/build-step-input.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, "..");
@@ -57,6 +58,9 @@ function parseArgs(argv) {
     reuseSession: false,
     maxRetries: 3,
     retryDelayMs: 60_000,
+    githubUrl: "",
+    analyzeReport: "",
+    previewMd: "",
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -65,6 +69,9 @@ function parseArgs(argv) {
     else if (a === "--timeout" && argv[i + 1]) out.timeout = Number(argv[++i]);
     else if (a === "--run-date" && argv[i + 1]) out.runDate = argv[++i];
     else if (a === "--output-dir" && argv[i + 1]) out.outputDir = argv[++i];
+    else if (a === "--github-url" && argv[i + 1]) out.githubUrl = argv[++i];
+    else if (a === "--analyze-report" && argv[i + 1]) out.analyzeReport = argv[++i];
+    else if (a === "--preview-md" && argv[i + 1]) out.previewMd = argv[++i];
     else if (a === "--max-retries" && argv[i + 1]) out.maxRetries = Number(argv[++i]);
     else if (a === "--retry-delay-ms" && argv[i + 1]) out.retryDelayMs = Number(argv[++i]);
     else if (a === "--cleanup-on-fail") out.cleanupOnFail = true;
@@ -72,7 +79,7 @@ function parseArgs(argv) {
   }
   if (!out.agent || !out.promptFile) {
     console.error(
-      "用法: node scripts/pipeline-agent.mjs --agent <id> --prompt-file <path> [--timeout <秒>] [--run-date YYYY-MM-DD] [--output-dir 路径] [--reuse-session] [--max-retries N] [--retry-delay-ms MS] [--cleanup-on-fail]",
+      "用法: node scripts/pipeline-agent.mjs --agent <id> --prompt-file <path> [--timeout <秒>] [--run-date YYYY-MM-DD] [--output-dir 路径] [--github-url URL] [--analyze-report 路径] [--preview-md 路径] [--reuse-session] [--max-retries N] [--retry-delay-ms MS] [--cleanup-on-fail]",
     );
     process.exit(2);
   }
@@ -123,6 +130,19 @@ const WORKSPACE_ROOT_FILES = new Set([
   "USER.md",
 ]);
 
+function resolveExpectedCount(stdin) {
+  if (!stdin) return 9;
+  try {
+    const data = JSON.parse(stdin);
+    if (Number.isInteger(data.expectedCount) && data.expectedCount > 0) return data.expectedCount;
+    if (Array.isArray(data.items) && data.items.length > 0) return data.items.length;
+    if (Array.isArray(data.reports) && data.reports.length > 0) return data.reports.length;
+  } catch {
+    // ignore
+  }
+  return 9;
+}
+
 function buildMessage(template, stdin, { runDate, outputDir, starTideRoot, agent }) {
   const parts = [template.trim()];
   if (runDate) parts.push(`\n\nrunDate: ${runDate}`);
@@ -152,10 +172,11 @@ function buildMessage(template, stdin, { runDate, outputDir, starTideRoot, agent
     parts.push(stdin);
   }
   if (agent === "opensource-analyzer") {
+    const expectedCount = resolveExpectedCount(stdin);
     parts.push(
       "\n\n---\n【执行顺序】",
-      "1. 使用工具完成 9 个仓库克隆；每个仓库按 codebase-knowledge-builder 完成 Recon + Deep-Dive 后再写该仓库的最终 markdown 报告（此阶段可使用 exec/read/write）。",
-      "2. 全部 9 份报告落盘后，**最后一轮回复**必须且只能输出 AGENTS.md 中的契约 JSON（禁止再调用任何工具；不要用 markdown 代码块；不要附加说明文字）。",
+      `1. 使用工具完成 ${expectedCount} 个仓库克隆；每个仓库按 codebase-knowledge-builder 完成 Recon + Deep-Dive 后再写该仓库的最终 markdown 报告（此阶段可使用 exec/read/write）。`,
+      `2. 全部 ${expectedCount} 份报告落盘后，**最后一轮回复**必须且只能输出 AGENTS.md 中的契约 JSON（禁止再调用任何工具；不要用 markdown 代码块；不要附加说明文字）。`,
       "未完成全部报告前不要输出最终 JSON。",
     );
   } else {
@@ -591,7 +612,18 @@ async function main() {
     process.exit(2);
   }
 
-  const stdin = await readStdin();
+  const pipedStdin = await readStdin();
+  const stdin = resolveStepStdin(
+    opts.agent === "opensource-analyzer"
+      ? "analyze"
+      : isPptPreviewRun(opts)
+        ? "ppt_preview"
+        : isPptFinalizeRun(opts)
+          ? "ppt_finalize"
+          : "",
+    opts,
+    pipedStdin,
+  );
   const starTideRoot = resolveStarTideRoot();
   const message = buildMessage(template, stdin, {
     runDate: opts.runDate,

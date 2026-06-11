@@ -2,6 +2,7 @@
   "name": "star-tide-daily",
   "private": true,
   "scripts": {
-    "test": "npm test --prefix tests"
+    "test": "npm test --prefix tests",
+    "e2e": "npm run e2e --prefix tests"
   }
 }

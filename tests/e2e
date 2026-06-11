@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# L3 E2E 快捷入口（等价于 node tests/run-e2e.mjs）
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export STAR_TIDE_ROOT="${STAR_TIDE_ROOT:-$ROOT}"
+exec node "$ROOT/tests/run-e2e.mjs" "$@"

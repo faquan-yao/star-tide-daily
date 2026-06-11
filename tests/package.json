@@ -3,10 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test pipeline-agent.test.mjs && node --test run-pipeline-step.test.mjs && node --test fetch-github-trending.test.mjs && node validate-output.mjs --all",
+    "test": "node --test pipeline-agent.test.mjs && node --test run-pipeline-step.test.mjs && node --test fetch-github-trending.test.mjs && node --test run-e2e.test.mjs && node validate-output.mjs --all",
     "test:static": "./preflight.sh --static",
     "test:preflight": "./preflight.sh",
-    "test:unit": "node --test pipeline-agent.test.mjs && node --test run-pipeline-step.test.mjs && node --test fetch-github-trending.test.mjs",
-    "test:fixtures": "node validate-output.mjs --all"
+    "test:unit": "node --test pipeline-agent.test.mjs && node --test run-pipeline-step.test.mjs && node --test fetch-github-trending.test.mjs && node --test run-e2e.test.mjs",
+    "test:fixtures": "node validate-output.mjs --all",
+    "e2e": "node run-e2e.mjs"
   }
 }

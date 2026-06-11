@@ -155,13 +155,51 @@ openclaw agents add ppt-maker --workspace "$STAR_TIDE_ROOT/agents/ppt-maker"
 }
 ```
 
-单步调试（推荐，步骤间 state 自动持久化）：
+**E2E 快捷测试（推荐，只需步骤名 + 可变参数）：**
+
+```bash
+./tests/e2e preflight
+./tests/e2e trending
+./tests/e2e analyze --github-url openclaw/openclaw
+./tests/e2e ppt-preview
+./tests/e2e all --date 2026-06-04
+```
+
+详见 [`tests/e2e-runbook.md`](tests/e2e-runbook.md)。
+
+单步调试（底层脚本，步骤间 state 自动持久化）：
 
 ```bash
 node scripts/run-pipeline-step.mjs --step trending --run-date 2026-06-04
 node scripts/run-pipeline-step.mjs --step analyze --run-date 2026-06-04
 node scripts/run-pipeline-step.mjs --step ppt_preview --run-date 2026-06-04
 node scripts/run-pipeline-step.mjs --step ppt_finalize --run-date 2026-06-04
+```
+
+各步骤也可**不依赖上一步输出**，手动传入输入（优先于 `.pipeline/*.json`）：
+
+```bash
+# analyze：直接分析单个 GitHub 项目
+node scripts/run-pipeline-step.mjs --step analyze --run-date 2026-06-04 \
+  --github-url https://github.com/openclaw/openclaw --force
+
+# ppt_preview：传入分析报告 markdown
+node scripts/run-pipeline-step.mjs --step ppt_preview --run-date 2026-06-04 \
+  --analyze-report artifacts/2026-06-04/01-openclaw-openclaw.md --force
+
+# ppt_finalize：传入预览 markdown
+node scripts/run-pipeline-step.mjs --step ppt_finalize --run-date 2026-06-04 \
+  --preview-md artifacts/2026-06-04/ppt/preview.md --force
+```
+
+Lobster 全流程同样支持（`argsJson` 中传入，手动输入优先于上一步 stdout）：
+
+```json
+{
+  "action": "run",
+  "pipeline": "workflows/star-tide-daily.lobster",
+  "argsJson": "{\"outputDir\":\"artifacts\",\"githubUrl\":\"https://github.com/openclaw/openclaw\"}"
+}
 ```
 
 trending 默认由脚本抓取（约数秒）；可选 LLM 回退：
@@ -171,10 +209,11 @@ node scripts/fetch-github-trending.mjs --run-date 2026-06-04
 node scripts/run-pipeline-step.mjs --step trending --run-date 2026-06-04 --use-llm
 ```
 
-其他步骤仍通过 pipeline-agent（需手动 pipe stdin）：
+其他步骤也可直接调用 pipeline-agent（支持 `--github-url` / `--analyze-report` / `--preview-md`）：
 
 ```bash
-node scripts/pipeline-agent.mjs --agent opensource-analyzer --prompt-file prompts/analyze.md --timeout 7200
+node scripts/pipeline-agent.mjs --agent opensource-analyzer --prompt-file prompts/analyze.md \
+  --timeout 7200 --github-url https://github.com/openclaw/openclaw
 ```
 
 ## 消息通道触发（TUI / 微信 / QQ）

@@ -11,7 +11,8 @@
 | `run-pipeline-step.test.mjs` | L1 | `run-pipeline-step.mjs` 单步脚本单元测试 |
 | `validate-output.mjs` | L2 | 各步骤 JSON 契约校验 |
 | `fixtures/` | L2 | 标准样例 JSON |
-| `e2e-runbook.md` | L3/L4 | 手工 E2E 与审批流程手册 |
+| `run-e2e.mjs` / `e2e` | L3 | **E2E 快捷入口**（只需步骤名 + 可变参数） |
+| `e2e-runbook.md` | L3/L4 | 手工 E2E 与审批流程手册（含底层命令详解） |
 
 ## 运行
 
@@ -30,8 +31,19 @@ npm run test:static      # L0 静态（CI）
 npm run test:preflight   # L0 完整（含 gateway）
 ```
 
-手工全流程见 [e2e-runbook.md](e2e-runbook.md)（含 `pipeline-agent.mjs` 输出格式说明与校验失败排查）。
+**L3 手工测试推荐：**
 
-`pipeline-agent.mjs` 常用参数：`--run-date`、`--timeout`、`--max-retries`、`--retry-delay-ms`、`--reuse-session`、`--cleanup-on-fail`。
+```bash
+./tests/e2e preflight
+./tests/e2e trending
+./tests/e2e analyze --github-url openclaw/openclaw
+./tests/e2e ppt-preview
+./tests/e2e ppt-finalize
+# 或: npm run e2e -- analyze --github-url openclaw/openclaw
+```
 
-`run-pipeline-step.mjs` 常用参数：`--step`、`--run-date`、`--output-dir`、`--stdin-file`、`--force`。详见根目录 [README.md](../README.md)。
+底层命令与 Lobster 审批流程见 [e2e-runbook.md](e2e-runbook.md)。
+
+`pipeline-agent.mjs` 常用参数：`--run-date`、`--timeout`、`--max-retries`、`--retry-delay-ms`、`--reuse-session`、`--cleanup-on-fail`；单步手动输入：`--github-url`（analyze）、`--analyze-report`（ppt_preview）、`--preview-md`（ppt_finalize）。
+
+`run-pipeline-step.mjs` 常用参数：`--step`、`--run-date`、`--output-dir`、`--stdin-file`、`--force`，以及同上三个手动输入参数。详见根目录 [README.md](../README.md) 与 [e2e-runbook.md](e2e-runbook.md) L3-B/C/D/E。

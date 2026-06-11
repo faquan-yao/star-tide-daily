@@ -36,6 +36,8 @@ echo "-- L0-07/L0-08 工作流与路径 --"
 require_file "workflow star-tide-daily.lobster" "$ROOT/workflows/star-tide-daily.lobster"
 require_file "pipeline-agent.mjs" "$ROOT/scripts/pipeline-agent.mjs"
 require_file "run-pipeline-step.mjs" "$ROOT/scripts/run-pipeline-step.mjs"
+require_file "run-e2e.mjs" "$ROOT/tests/run-e2e.mjs"
+require_file "e2e wrapper" "$ROOT/tests/e2e"
 require_file "pipeline-steps.mjs" "$ROOT/scripts/pipeline-steps.mjs"
 require_file "fetch-github-trending.mjs" "$ROOT/scripts/fetch-github-trending.mjs"
 require_file "prompt trending.md" "$ROOT/prompts/trending.md"
@@ -58,10 +60,14 @@ if grep -q 'id: trending' "$LOBSTER" \
   && grep -q 'stdin: \$analyze.stdout' "$LOBSTER" \
   && grep -q 'stdin: \$ppt_preview.stdout' "$LOBSTER" \
   && grep -q 'approval: required' "$LOBSTER" \
-  && grep -q 'condition: \$ppt_preview.approved' "$LOBSTER"; then
-  pass "lobster stdin chain + approval + condition"
+  && grep -q 'condition: \$ppt_preview.approved' "$LOBSTER" \
+  && grep -q 'githubUrl:' "$LOBSTER" \
+  && grep -q '--github-url' "$LOBSTER" \
+  && grep -q '--analyze-report' "$LOBSTER" \
+  && grep -q '--preview-md' "$LOBSTER"; then
+  pass "lobster stdin chain + manual input + approval + condition"
 else
-  fail "lobster stdin chain + approval + condition"
+  fail "lobster stdin chain + manual input + approval + condition"
 fi
 
 echo ""

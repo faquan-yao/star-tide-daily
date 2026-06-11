@@ -2,7 +2,43 @@
 
 本文档位于 `tests/` 目录，与正式工程代码分离。对应 **L3 单步冒烟** 与 **L4 全流程 E2E**。
 
-执行前请先通过 L0：
+## 快捷入口（推荐）
+
+使用 `tests/run-e2e.mjs`（或 `./tests/e2e`）时，**只需命令名与可变参数**；`outputDir`、`--force`、校验、`STAR_TIDE_ROOT`、state 路径等均已内置。
+
+```bash
+# L0
+./tests/e2e preflight
+
+# L3 单步（链式：自动读上一步 .pipeline state）
+./tests/e2e trending
+./tests/e2e analyze
+./tests/e2e ppt-preview
+./tests/e2e ppt-finalize
+
+# L3 独立单步（仅传可变参数）
+./tests/e2e analyze --github-url openclaw/openclaw
+./tests/e2e ppt-preview --report artifacts/2026-06-04/01-openclaw-openclaw.md
+./tests/e2e ppt-finalize --preview artifacts/2026-06-04/ppt/preview.md
+
+# 省略 --report / --preview 时，自动发现 artifacts/<date>/ 下首个报告或 preview.md
+./tests/e2e ppt-preview --date 2026-06-04
+./tests/e2e ppt-finalize --date 2026-06-04
+
+# L3 全流程链式
+./tests/e2e all --date 2026-06-04
+
+# 仅校验已有 state
+./tests/e2e validate analyze --date 2026-06-04
+```
+
+等价 npm 脚本（在仓库根目录）：`npm run e2e -- <command> [可变参数]`
+
+可变参数一览：`--date`、`--github-url`、`--report`、`--preview`（均可省略）。
+
+---
+
+执行前请先通过 L0（或使用 `./tests/e2e preflight`）：
 
 ```bash
 ./tests/preflight.sh
@@ -75,6 +111,8 @@ node scripts/run-pipeline-step.mjs --step trending --run-date "$RUN_DATE" --outp
 
 ## L3-B：analyze 单步
 
+### 方式一：依赖 trending 输出（完整 9 仓库）
+
 ```bash
 cat /tmp/trending.out.json | node scripts/pipeline-agent.mjs \
   --agent opensource-analyzer \
@@ -87,11 +125,34 @@ cat /tmp/trending.out.json | node scripts/pipeline-agent.mjs \
 node tests/validate-output.mjs --step analyze --file /tmp/analyze.out.json --check-files
 ```
 
+### 方式二：手动传入 GitHub 项目地址（单仓库冒烟，无需 trending）
+
+```bash
+node scripts/pipeline-agent.mjs \
+  --agent opensource-analyzer \
+  --prompt-file prompts/analyze.md \
+  --timeout 7200 \
+  --run-date "$RUN_DATE" \
+  --output-dir "$OUT_DIR" \
+  --github-url https://github.com/openclaw/openclaw \
+  | tee /tmp/analyze.out.json
+
+node tests/validate-output.mjs --step analyze --file /tmp/analyze.out.json --check-files
+```
+
+或使用单步脚本（推荐）：
+
+```bash
+node scripts/run-pipeline-step.mjs --step analyze --run-date "$RUN_DATE" --output-dir "$OUT_DIR" \
+  --github-url https://github.com/openclaw/openclaw --force
+```
+
 **通过标准：**
 
-- `reports.length === 9`（三领域各 3 条）；每条含 `purpose`、`installation`、`architecture`、`risks`（至少 1 条）
-- `artifacts/$RUN_DATE/01-*.md` … `09-*.md` 共 9 个文件存在；每份报告含五节（用途、安装、架构、运行逻辑、风险）及 **2 个** `mermaid` 代码块
-- `artifacts/$RUN_DATE/clones/` 下 9 个克隆目录存在
+- 完整路径：`reports.length === 9`（三领域各 3 条）；单仓库冒烟：`reports.length >= 1`
+- 每条含 `purpose`、`installation`、`architecture`、`risks`（至少 1 条）
+- `artifacts/$RUN_DATE/01-*.md` … 报告文件存在；每份报告含五节（用途、安装、架构、运行逻辑、风险）及 **2 个** `mermaid` 代码块
+- `artifacts/$RUN_DATE/clones/` 下对应克隆目录存在
 - （可选）`artifacts/$RUN_DATE/.scratch/<owner-repo>/` 下应有 Recon / Deep-Dive 中间笔记；agent 使用 Skill `codebase-knowledge-builder` 时应产生
 
 若校验提示报告文件缺失，但文件实际在 `agents/opensource-analyzer/` 工作区下，重新执行本步骤（`pipeline-agent.mjs` 会自动迁到 `artifacts/`）。
@@ -99,6 +160,8 @@ node tests/validate-output.mjs --step analyze --file /tmp/analyze.out.json --che
 ---
 
 ## L3-C：ppt_preview 单步
+
+### 方式一：依赖 analyze 输出
 
 ```bash
 cat /tmp/analyze.out.json | node scripts/pipeline-agent.mjs \
@@ -110,6 +173,28 @@ cat /tmp/analyze.out.json | node scripts/pipeline-agent.mjs \
   | tee /tmp/ppt-preview.out.json
 
 node tests/validate-output.mjs --step ppt_preview --file /tmp/ppt-preview.out.json --check-files
+```
+
+### 方式二：手动传入分析报告 markdown（无需 analyze JSON）
+
+```bash
+node scripts/pipeline-agent.mjs \
+  --agent ppt-maker \
+  --prompt-file prompts/ppt-preview.md \
+  --timeout 3600 \
+  --run-date "$RUN_DATE" \
+  --output-dir "$OUT_DIR" \
+  --analyze-report "artifacts/$RUN_DATE/01-openclaw-openclaw.md" \
+  | tee /tmp/ppt-preview.out.json
+
+node tests/validate-output.mjs --step ppt_preview --file /tmp/ppt-preview.out.json --check-files
+```
+
+或使用单步脚本：
+
+```bash
+node scripts/run-pipeline-step.mjs --step ppt_preview --run-date "$RUN_DATE" --output-dir "$OUT_DIR" \
+  --analyze-report "artifacts/$RUN_DATE/01-openclaw-openclaw.md" --force
 ```
 
 **通过标准：** `phase: "preview"`；`preview.md` 存在；`pendingApproval` 非空。
@@ -124,6 +209,8 @@ ls "artifacts/$RUN_DATE/ppt/"   # 应有 preview.md，无最终 pptx
 
 ## L3-D：ppt_finalize 单步（预览通过后）
 
+### 方式一：依赖 ppt_preview 输出
+
 ```bash
 cat /tmp/ppt-preview.out.json | node scripts/pipeline-agent.mjs \
   --agent ppt-maker \
@@ -136,13 +223,37 @@ cat /tmp/ppt-preview.out.json | node scripts/pipeline-agent.mjs \
 node tests/validate-output.mjs --step ppt_finalize --file /tmp/ppt-finalize.out.json --check-files
 ```
 
+### 方式二：手动传入预览 markdown（无需 ppt_preview JSON）
+
+```bash
+node scripts/pipeline-agent.mjs \
+  --agent ppt-maker \
+  --prompt-file prompts/ppt-finalize.md \
+  --timeout 3600 \
+  --run-date "$RUN_DATE" \
+  --output-dir "$OUT_DIR" \
+  --preview-md "artifacts/$RUN_DATE/ppt/preview.md" \
+  | tee /tmp/ppt-finalize.out.json
+
+node tests/validate-output.mjs --step ppt_finalize --file /tmp/ppt-finalize.out.json --check-files
+```
+
+或使用单步脚本：
+
+```bash
+node scripts/run-pipeline-step.mjs --step ppt_finalize --run-date "$RUN_DATE" --output-dir "$OUT_DIR" \
+  --preview-md "artifacts/$RUN_DATE/ppt/preview.md" --force
+```
+
 **通过标准：** `phase: "finalize"`；`daily-report-$RUN_DATE.pptx` 存在且可打开。
 
 ---
 
 ## L3-E：单步脚本（state 持久化）
 
-无需手动 `tee` / pipe，步骤 JSON 写入 `artifacts/$RUN_DATE/.pipeline/`：
+无需手动 `tee` / pipe，步骤 JSON 写入 `artifacts/$RUN_DATE/.pipeline/`。
+
+**完整链式（每步读上一步 state）：**
 
 ```bash
 cd "$STAR_TIDE_ROOT"
@@ -151,6 +262,16 @@ node scripts/run-pipeline-step.mjs --step analyze --run-date "$RUN_DATE" --outpu
 node scripts/run-pipeline-step.mjs --step ppt_preview --run-date "$RUN_DATE" --output-dir "$OUT_DIR"
 node scripts/run-pipeline-step.mjs --step ppt_finalize --run-date "$RUN_DATE" --output-dir "$OUT_DIR"
 ```
+
+**独立单步（手动输入，优先于 `.pipeline/*.json`）：**
+
+| 步骤 | 参数 | 示例 |
+|------|------|------|
+| analyze | `--github-url` | `--github-url https://github.com/openclaw/openclaw` |
+| ppt_preview | `--analyze-report` | `--analyze-report artifacts/$RUN_DATE/01-openclaw-openclaw.md` |
+| ppt_finalize | `--preview-md` | `--preview-md artifacts/$RUN_DATE/ppt/preview.md` |
+
+手动输入与 `--stdin-file`、上一步 state 的优先级：**手动输入 > `--stdin-file` > `.pipeline/<prev>.json`**。
 
 **通过标准：** 每步 stdout 可通过 `validate-output.mjs`；对应 `.pipeline/<step>.json` 存在。
 
@@ -184,6 +305,18 @@ node scripts/run-pipeline-step.mjs --step ppt_finalize --run-date "$RUN_DATE" --
   "timeoutMs": 14400000
 }
 ```
+
+单步 Lobster 调试时，可在 `argsJson` 中传入手动输入（优先于上一步 stdout）：
+
+```json
+{
+  "action": "run",
+  "pipeline": "workflows/star-tide-daily.lobster",
+  "argsJson": "{\"githubUrl\":\"https://github.com/openclaw/openclaw\"}"
+}
+```
+
+可选参数：`githubUrl`（analyze）、`analyzeReport`（ppt_preview）、`previewMd`（ppt_finalize）。
 
 ### 阶段检查表
 

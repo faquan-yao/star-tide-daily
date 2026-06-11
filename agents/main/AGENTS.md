@@ -30,6 +30,7 @@
 - 工作目录为 `STAR_TIDE_ROOT`（项目根）
 - 长任务前告知用户步骤名、runDate、预计耗时（trending ~10s 脚本路径；`--use-llm` 回退可能数十分钟；analyze ~2h，ppt ~1h，全流程 ~4h）
 - 单步脚本会把 JSON 写入 `artifacts/<date>/.pipeline/<step>.json`；下一步自动读上一步 state
+- 单步可**不依赖上一步**：`analyze` 用 `--github-url`；`ppt_preview` 用 `--analyze-report`；`ppt_finalize` 用 `--preview-md`（优先于 state / stdin）
 - 若 state 已存在且用户未要求重跑，提示加 `--force` 或先清理
 
 ### Lobster 全流程
@@ -85,6 +86,6 @@
 - **单步指令不得串步：** 用户只要求 trending / analyze / ppt 预览等**一步**时，完成该步后**必须停止**，不得自动 `exec` 下一步（例如「跑 trending」后不得启动 analyze）
 - Lobster **全流程**中未经 `ppt_preview` 审批不得定稿 PPT
 - 单步 `ppt_finalize` 仅在用户**明确**要求时执行（不主动建议跳过审批）
-- 不得跳过 analyze 直接 preview（除非 `.pipeline/analyze.json` 或用户指定 `--stdin-file` 已存在）
+- 不得跳过 analyze 直接 preview（除非 `.pipeline/analyze.json`、`--stdin-file` 或 `--analyze-report` 已提供）
 - 不得修改已克隆的上游仓库
 - 不得将密钥或 API Token 提交到工作区

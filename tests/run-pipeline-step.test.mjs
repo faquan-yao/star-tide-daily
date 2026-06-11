@@ -20,7 +20,7 @@ import {
   STEP_IDS,
   PIPELINE_STEPS,
 } from "../scripts/pipeline-steps.mjs";
-import { parseArgs, resolveStdinPath, saveState } from "../scripts/run-pipeline-step.mjs";
+import { parseArgs, resolveStdinPath, saveState, loadStdin } from "../scripts/run-pipeline-step.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_TRENDING = readFileSync(resolve(__dirname, "fixtures/trending.ok.json"), "utf8");
@@ -132,6 +132,47 @@ test("L1-RS-09 saveState 写入 JSON", () => {
 
 test("L1-RS-10 未知步骤抛出", () => {
   assert.throws(() => getStepDef("invalid"), /未知步骤/);
+});
+
+test("L1-RS-11a parseArgs 解析手动输入参数", () => {
+  const opts = parseArgs([
+    "node",
+    "run-pipeline-step.mjs",
+    "--step",
+    "analyze",
+    "--github-url",
+    "openclaw/openclaw",
+    "--analyze-report",
+    "artifacts/2026-06-04/01-openclaw-openclaw.md",
+    "--preview-md",
+    "artifacts/2026-06-04/ppt/preview.md",
+  ]);
+  assert.equal(opts.githubUrl, "openclaw/openclaw");
+  assert.equal(opts.analyzeReport, "artifacts/2026-06-04/01-openclaw-openclaw.md");
+  assert.equal(opts.previewMd, "artifacts/2026-06-04/ppt/preview.md");
+});
+
+test("L1-RS-11b loadStdin analyze 支持 --github-url", () => {
+  const root = mkdtempSync(join(tmpdir(), "rs-github-"));
+  const prevRoot = process.env.STAR_TIDE_ROOT;
+  process.env.STAR_TIDE_ROOT = root;
+  try {
+    const opts = {
+      stdinFile: "",
+      githubUrl: "openclaw/openclaw",
+      analyzeReport: "",
+      previewMd: "",
+      outputDir: "artifacts",
+      runDate: "2026-06-04",
+    };
+    const stdin = loadStdin(opts, getStepDef("analyze"));
+    const parsed = JSON.parse(stdin);
+    assert.equal(parsed.items[0].name, "openclaw/openclaw");
+  } finally {
+    if (prevRoot === undefined) delete process.env.STAR_TIDE_ROOT;
+    else process.env.STAR_TIDE_ROOT = prevRoot;
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("L1-RS-11 各步 timeout 与 pipeline-agent 一致", () => {
